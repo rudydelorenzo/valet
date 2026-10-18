@@ -31,11 +31,11 @@ interface Stack {
   Status: number;
 }
 
-export default function InstanceDetailContent({
+const InstanceDetailContent = ({
   params,
 }: {
   params: Promise<{ id: string }>;
-}) {
+}) => {
   const { id } = use(params);
   const router = useRouter();
   const [instance, setInstance] = useState<Instance | null>(null);
@@ -270,4 +270,6 @@ export default function InstanceDetailContent({
       </Card>
     </div>
   );
-}
+};
+
+export default InstanceDetailContent;

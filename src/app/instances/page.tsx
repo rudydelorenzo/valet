@@ -16,7 +16,7 @@ interface Instance {
   createdAt: string;
 }
 
-export default function InstancesPage() {
+const InstancesPage = () => {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -189,4 +189,6 @@ export default function InstancesPage() {
       )}
     </div>
   );
-}
+};
+
+export default InstancesPage;

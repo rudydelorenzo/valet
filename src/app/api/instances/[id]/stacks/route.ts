@@ -3,10 +3,10 @@ import { portainerInstances } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { listStacks } from "@/lib/portainer";
 
-export async function GET(
+export const GET = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   const [instance] = await db
     .select()
@@ -31,4 +31,4 @@ export async function GET(
       { status: 502 },
     );
   }
-}
+};

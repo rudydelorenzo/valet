@@ -3,11 +3,11 @@ import InstanceDetailContent from "./content";
 
 export const instant = false;
 
-export default function InstanceDetailPage({
+const InstanceDetailPage = ({
   params,
 }: {
   params: Promise<{ id: string }>;
-}) {
+}) => {
   return (
     <Suspense
       fallback={
@@ -19,4 +19,6 @@ export default function InstanceDetailPage({
       <InstanceDetailContent params={params} />
     </Suspense>
   );
-}
+};
+
+export default InstanceDetailPage;

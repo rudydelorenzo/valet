@@ -7,10 +7,10 @@ import { redeployStack } from "@/lib/portainer";
 /**
  * POST — manually trigger a webhook redeploy (for testing from the UI).
  */
-export async function POST(
+export const POST = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id: webhookId } = await params;
 
   const [webhook] = await db
@@ -63,4 +63,4 @@ export async function POST(
     .where(eq(webhookEvents.id, event.id));
 
   return Response.json(result);
-}
+};

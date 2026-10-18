@@ -4,7 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { id } from "@/lib/ids";
 import crypto from "node:crypto";
 
-export async function GET() {
+export const GET = async () => {
   const rows = await db
     .select({
       id: webhooks.id,
@@ -27,9 +27,9 @@ export async function GET() {
     .orderBy(desc(webhooks.createdAt));
 
   return Response.json(rows);
-}
+};
 
-export async function POST(request: Request) {
+export const POST = async (request: Request) => {
   const body = await request.json();
   const {
     name,
@@ -75,4 +75,4 @@ export async function POST(request: Request) {
     .returning();
 
   return Response.json(webhook, { status: 201 });
-}
+};

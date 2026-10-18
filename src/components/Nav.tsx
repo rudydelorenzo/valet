@@ -17,7 +17,7 @@ const LINKS = [
   { href: "/admin/settings", label: "Admin" },
 ];
 
-export default function Nav() {
+const Nav = () => {
   const pathname = usePathname();
   const [session, setSession] = useState<Session | null>(null);
 
@@ -45,6 +45,7 @@ export default function Nav() {
                 key={href}
                 variant={active ? "secondary" : "ghost"}
                 size="sm"
+                nativeButton={false}
                 render={<Link href={href} />}
               >
                 {label}
@@ -59,7 +60,7 @@ export default function Nav() {
               <span className="hidden text-xs sm:inline">
                 {session.user?.name}
               </span>
-              <Button variant="ghost" size="sm" render={<a href="/api/auth/logout" />}>
+              <Button variant="ghost" size="sm" nativeButton={false} render={<a href="/api/auth/logout" />}>
                 Log out
               </Button>
             </>
@@ -68,4 +69,6 @@ export default function Nav() {
       </div>
     </nav>
   );
-}
+};
+
+export default Nav;

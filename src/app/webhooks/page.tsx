@@ -29,7 +29,7 @@ interface Stack {
   EndpointId: number;
 }
 
-export default function WebhooksPage() {
+const WebhooksPage = () => {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
@@ -100,9 +100,11 @@ export default function WebhooksPage() {
       )}
     </div>
   );
-}
+};
 
-function CreateWizard({ onDone }: { onDone: () => void }) {
+export default WebhooksPage;
+
+const CreateWizard = ({ onDone }: { onDone: () => void }) => {
   const [step, setStep] = useState(1);
   const [instances, setInstances] = useState<Instance[]>([]);
   const [stacks, setStacks] = useState<Stack[]>([]);
@@ -286,4 +288,4 @@ function CreateWizard({ onDone }: { onDone: () => void }) {
       </CardContent>
     </Card>
   );
-}
+};

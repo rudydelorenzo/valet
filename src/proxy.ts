@@ -3,7 +3,7 @@ import { jwtVerify } from "jose";
 
 const COOKIE_NAME = "valet.session";
 
-function getSecret(): Uint8Array {
+const getSecret = (): Uint8Array => {
   const secret = process.env.AUTH_SECRET;
   if (!secret) {
     if (process.env.NODE_ENV === "production") {
@@ -12,16 +12,18 @@ function getSecret(): Uint8Array {
     return new TextEncoder().encode("valet-dev-secret-do-not-use-in-prod");
   }
   return new TextEncoder().encode(secret);
-}
+};
 
 const PUBLIC_PREFIXES = [
   "/api/hooks/",   // inbound webhook receiver
   "/api/auth/",    // login / callback / logout / session
+  "/api/setup",    // setup code verification
+  "/setup",        // setup page
   "/_next/",       // Next.js internals
   "/favicon",
 ];
 
-export async function middleware(request: NextRequest) {
+export const proxy = async (request: NextRequest) => {
   const { pathname } = request.nextUrl;
 
   // Always allow public routes
@@ -49,7 +51,7 @@ export async function middleware(request: NextRequest) {
     res.cookies.set(COOKIE_NAME, "", { maxAge: 0, path: "/" });
     return res;
   }
-}
+};
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],

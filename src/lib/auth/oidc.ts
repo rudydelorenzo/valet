@@ -15,47 +15,44 @@ export interface OIDCDiscovery {
   jwks_uri: string;
 }
 
-export async function discover(issuer: string): Promise<OIDCDiscovery> {
+export const discover = async (issuer: string): Promise<OIDCDiscovery> => {
   const wellKnown = `${issuer.replace(/\/$/, "")}/.well-known/openid-configuration`;
   const res = await fetch(wellKnown, { cache: "no-store" });
   if (!res.ok) throw new Error(`OIDC discovery failed (${res.status})`);
   return res.json() as Promise<OIDCDiscovery>;
-}
+};
 
 // ── PKCE helpers ────────────────────────────────────────────────────
 
 const BASE64URL =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-function randomBase64Url(len: number): string {
+const randomBase64Url = (len: number): string => {
   const bytes = crypto.getRandomValues(new Uint8Array(len));
   return Array.from(bytes, (b) => BASE64URL[b % 64]).join("");
-}
+};
 
-export function generateCodeVerifier(): string {
-  return randomBase64Url(32);
-}
+export const generateCodeVerifier = (): string => randomBase64Url(32);
 
-export async function generateCodeChallenge(verifier: string): Promise<string> {
+export const generateCodeChallenge = async (verifier: string): Promise<string> => {
   const data = new TextEncoder().encode(verifier);
   const digest = await crypto.subtle.digest("SHA-256", data);
-  // base64url-encode the digest
   const bytes = new Uint8Array(digest);
   let binary = "";
   bytes.forEach((b) => (binary += String.fromCharCode(b)));
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
+};
 
 // ── Authorization URL ───────────────────────────────────────────────
 
-export function buildAuthorizationUrl(params: {
+export const buildAuthorizationUrl = (params: {
   discovery: OIDCDiscovery;
   clientId: string;
   redirectUri: string;
   scopes: string;
   state: string;
   codeChallenge: string;
-}): string {
+}): string => {
   const url = new URL(params.discovery.authorization_endpoint);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", params.clientId);
@@ -65,7 +62,7 @@ export function buildAuthorizationUrl(params: {
   url.searchParams.set("code_challenge", params.codeChallenge);
   url.searchParams.set("code_challenge_method", "S256");
   return url.toString();
-}
+};
 
 // ── Token exchange + userinfo ────────────────────────────────────────
 
@@ -84,14 +81,14 @@ export interface UserInfo {
   [key: string]: unknown;
 }
 
-export async function exchangeCode(params: {
+export const exchangeCode = async (params: {
   discovery: OIDCDiscovery;
   clientId: string;
   clientSecret: string;
   code: string;
   redirectUri: string;
   codeVerifier: string;
-}): Promise<{ tokens: TokenResponse; userinfo: UserInfo }> {
+}): Promise<{ tokens: TokenResponse; userinfo: UserInfo }> => {
   // Exchange code for tokens
   const tokenRes = await fetch(params.discovery.token_endpoint, {
     method: "POST",
@@ -127,7 +124,7 @@ export async function exchangeCode(params: {
   }
 
   return { tokens, userinfo };
-}
+};
 
 // ── PKCE cookie helpers ─────────────────────────────────────────────
 
@@ -137,7 +134,7 @@ export interface PKCEData {
   providerId: string;
 }
 
-export async function setPKCECookie(data: PKCEData): Promise<void> {
+export const setPKCECookie = async (data: PKCEData): Promise<void> => {
   const { cookies } = await import("next/headers");
   const store = await cookies();
   store.set(PKCE_COOKIE, JSON.stringify(data), {
@@ -147,9 +144,9 @@ export async function setPKCECookie(data: PKCEData): Promise<void> {
     path: "/",
     maxAge: PKCE_MAX_AGE,
   });
-}
+};
 
-export async function getPKCEData(): Promise<PKCEData | null> {
+export const getPKCEData = async (): Promise<PKCEData | null> => {
   const { cookies } = await import("next/headers");
   const store = await cookies();
   const raw = store.get(PKCE_COOKIE)?.value;
@@ -159,9 +156,9 @@ export async function getPKCEData(): Promise<PKCEData | null> {
   } catch {
     return null;
   }
-}
+};
 
-export async function clearPKCECookie(): Promise<void> {
+export const clearPKCECookie = async (): Promise<void> => {
   const { cookies } = await import("next/headers");
   const store = await cookies();
   store.set(PKCE_COOKIE, "", {
@@ -171,4 +168,4 @@ export async function clearPKCECookie(): Promise<void> {
     path: "/",
     maxAge: 0,
   });
-}
+};

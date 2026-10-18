@@ -4,7 +4,7 @@ import { desc } from "drizzle-orm";
 import { id } from "@/lib/ids";
 import { testConnection } from "@/lib/portainer";
 
-export async function GET() {
+export const GET = async () => {
   const instances = await db
     .select({
       id: portainerInstances.id,
@@ -17,9 +17,9 @@ export async function GET() {
     .orderBy(desc(portainerInstances.createdAt));
 
   return Response.json(instances);
-}
+};
 
-export async function POST(request: Request) {
+export const POST = async (request: Request) => {
   const body = await request.json();
   const { name, url, token, insecureTls } = body as {
     name?: string;
@@ -53,4 +53,4 @@ export async function POST(request: Request) {
     .returning();
 
   return Response.json(instance, { status: 201 });
-}
+};

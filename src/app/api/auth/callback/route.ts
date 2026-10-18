@@ -10,7 +10,7 @@ import {
 } from "@/lib/auth/oidc";
 import { createSessionJwt, setSessionCookie } from "@/lib/auth/session";
 
-export async function GET(request: NextRequest) {
+export const GET = async (request: NextRequest) => {
   const url = request.nextUrl;
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
@@ -83,4 +83,4 @@ export async function GET(request: NextRequest) {
     );
     return NextResponse.redirect(new URL(`/?error=${msg}`, request.url));
   }
-}
+};

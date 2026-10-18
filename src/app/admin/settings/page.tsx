@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { CopyableContent } from "@/components/CopyableContent";
 import { toast } from "sonner";
 
 interface Provider {
@@ -24,7 +25,7 @@ interface Provider {
   createdAt: string;
 }
 
-export default function AdminSettingsPage() {
+const AdminSettingsPage = () => {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -165,6 +166,10 @@ export default function AdminSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <CopyableContent
+              label="Redirect / callback URL"
+              value={`${typeof window !== "undefined" ? window.location.origin : ""}/api/auth/callback`}
+            />
             <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="provName">Display name</Label>
@@ -247,7 +252,7 @@ export default function AdminSettingsPage() {
 
       {providers.length === 0 ? (
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="flex items-center justify-center py-8">
             <p className="text-sm text-muted-foreground">
               No identity providers configured. Add one to enable login.
             </p>
@@ -298,4 +303,6 @@ export default function AdminSettingsPage() {
       )}
     </div>
   );
-}
+};
+
+export default AdminSettingsPage;

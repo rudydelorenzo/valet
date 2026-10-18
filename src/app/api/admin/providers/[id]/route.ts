@@ -3,10 +3,10 @@ import { oidcProviders } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { discover } from "@/lib/auth/oidc";
 
-export async function GET(
+export const GET = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   const [provider] = await db
     .select()
@@ -21,12 +21,12 @@ export async function GET(
   // Never expose the client secret
   const { clientSecret, ...safe } = provider;
   return Response.json(safe);
-}
+};
 
-export async function PATCH(
+export const PATCH = async (
   request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   const body = await request.json();
   const updates: Record<string, unknown> = {};
@@ -61,12 +61,12 @@ export async function PATCH(
   }
 
   return Response.json({ ok: true });
-}
+};
 
-export async function DELETE(
+export const DELETE = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   const [deleted] = await db
     .delete(oidcProviders)
@@ -78,4 +78,4 @@ export async function DELETE(
   }
 
   return Response.json({ ok: true });
-}
+};

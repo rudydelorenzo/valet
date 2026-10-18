@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/auth/session";
 
-export async function GET() {
+export const GET = async () => {
   const session = await getSession();
   if (!session) {
     return Response.json({ authenticated: false });
@@ -13,4 +13,4 @@ export async function GET() {
       name: session.name,
     },
   });
-}
+};

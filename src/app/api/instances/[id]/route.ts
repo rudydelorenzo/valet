@@ -2,10 +2,10 @@ import { db } from "@/lib/db";
 import { portainerInstances } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-export async function GET(
+export const GET = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   const [instance] = await db
     .select()
@@ -20,12 +20,12 @@ export async function GET(
   // Don't expose the token in GET
   const { token, ...safe } = instance;
   return Response.json({ ...safe, hasToken: true });
-}
+};
 
-export async function PATCH(
+export const PATCH = async (
   request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   const body = await request.json();
   const updates: Record<string, unknown> = {};
@@ -46,12 +46,12 @@ export async function PATCH(
   }
 
   return Response.json({ ok: true });
-}
+};
 
-export async function DELETE(
+export const DELETE = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   const [deleted] = await db
     .delete(portainerInstances)
@@ -63,4 +63,4 @@ export async function DELETE(
   }
 
   return Response.json({ ok: true });
-}
+};

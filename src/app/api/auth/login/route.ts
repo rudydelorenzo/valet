@@ -10,7 +10,7 @@ import {
   setPKCECookie,
 } from "@/lib/auth/oidc";
 
-export async function GET(request: NextRequest) {
+export const GET = async (request: NextRequest) => {
   // Find the first enabled provider
   const [provider] = await db
     .select()
@@ -19,8 +19,7 @@ export async function GET(request: NextRequest) {
     .limit(1);
 
   if (!provider) {
-    // No provider configured — send to admin settings
-    return NextResponse.redirect(new URL("/admin/settings", request.url));
+    return NextResponse.redirect(new URL("/setup", request.url));
   }
 
   try {
@@ -58,4 +57,4 @@ export async function GET(request: NextRequest) {
       new URL(`/admin/settings?error=${msg}`, request.url),
     );
   }
-}
+};

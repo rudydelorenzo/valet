@@ -3,10 +3,10 @@ import { portainerInstances } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { testConnection } from "@/lib/portainer";
 
-export async function POST(
+export const POST = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   const [instance] = await db
     .select()
@@ -25,4 +25,4 @@ export async function POST(
   );
 
   return Response.json(result);
-}
+};

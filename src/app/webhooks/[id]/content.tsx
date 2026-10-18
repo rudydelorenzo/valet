@@ -37,11 +37,11 @@ interface Event {
   createdAt: string;
 }
 
-export default function WebhookDetailContent({
+const WebhookDetailContent = ({
   params,
 }: {
   params: Promise<{ id: string }>;
-}) {
+}) => {
   const { id } = use(params);
   const router = useRouter();
   const [webhook, setWebhook] = useState<Webhook | null>(null);
@@ -252,4 +252,6 @@ export default function WebhookDetailContent({
       </Card>
     </div>
   );
-}
+};
+
+export default WebhookDetailContent;

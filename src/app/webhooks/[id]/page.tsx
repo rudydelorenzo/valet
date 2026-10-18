@@ -3,11 +3,11 @@ import WebhookDetailContent from "./content";
 
 export const instant = false;
 
-export default function WebhookDetailPage({
+const WebhookDetailPage = ({
   params,
 }: {
   params: Promise<{ id: string }>;
-}) {
+}) => {
   return (
     <Suspense
       fallback={
@@ -19,4 +19,6 @@ export default function WebhookDetailPage({
       <WebhookDetailContent params={params} />
     </Suspense>
   );
-}
+};
+
+export default WebhookDetailPage;

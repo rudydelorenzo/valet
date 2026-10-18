@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 const COOKIE_NAME = "valet.session";
 const MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
-function getSecret(): Uint8Array {
+const getSecret = (): Uint8Array => {
   const secret = process.env.AUTH_SECRET;
   if (!secret) {
     if (process.env.NODE_ENV === "production") {
@@ -16,7 +16,7 @@ function getSecret(): Uint8Array {
     return new TextEncoder().encode("valet-dev-secret-do-not-use-in-prod");
   }
   return new TextEncoder().encode(secret);
-}
+};
 
 export interface SessionPayload extends JWTPayload {
   sub: string; // provider user id
@@ -25,20 +25,20 @@ export interface SessionPayload extends JWTPayload {
   providerId: string;
 }
 
-export async function createSessionJwt(
+export const createSessionJwt = async (
   payload: Omit<SessionPayload, "iat" | "exp" | "iss">,
-): Promise<string> {
+): Promise<string> => {
   return new SignJWT(payload as unknown as JWTPayload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE_SECONDS}s`)
     .setIssuer("valet")
     .sign(getSecret());
-}
+};
 
-export async function verifySessionJwt(
+export const verifySessionJwt = async (
   token: string,
-): Promise<SessionPayload | null> {
+): Promise<SessionPayload | null> => {
   try {
     const { payload } = await jwtVerify(token, getSecret(), {
       issuer: "valet",
@@ -47,18 +47,18 @@ export async function verifySessionJwt(
   } catch {
     return null;
   }
-}
+};
 
 /** Read the current session from the cookie. Returns null if absent or invalid. */
-export async function getSession(): Promise<SessionPayload | null> {
+export const getSession = async (): Promise<SessionPayload | null> => {
   const store = await cookies();
   const token = store.get(COOKIE_NAME)?.value;
   if (!token) return null;
   return verifySessionJwt(token);
-}
+};
 
 /** Set the session cookie (called after successful OIDC callback). */
-export async function setSessionCookie(jwt: string): Promise<void> {
+export const setSessionCookie = async (jwt: string): Promise<void> => {
   const store = await cookies();
   store.set(COOKIE_NAME, jwt, {
     httpOnly: true,
@@ -67,10 +67,10 @@ export async function setSessionCookie(jwt: string): Promise<void> {
     path: "/",
     maxAge: MAX_AGE_SECONDS,
   });
-}
+};
 
 /** Clear the session cookie. */
-export async function clearSessionCookie(): Promise<void> {
+export const clearSessionCookie = async (): Promise<void> => {
   const store = await cookies();
   store.set(COOKIE_NAME, "", {
     httpOnly: true,
@@ -79,4 +79,4 @@ export async function clearSessionCookie(): Promise<void> {
     path: "/",
     maxAge: 0,
   });
-}
+};

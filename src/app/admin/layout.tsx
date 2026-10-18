@@ -5,11 +5,11 @@ const ADMIN_LINKS = [
   { href: "/admin/settings", label: "Identity providers" },
 ];
 
-export default function AdminLayout({
+const AdminLayout = ({
   children,
 }: {
   children: React.ReactNode;
-}) {
+}) => {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 gap-8 px-4 py-8">
       <aside className="w-48 shrink-0">
@@ -18,7 +18,7 @@ export default function AdminLayout({
         </h2>
         <nav className="flex flex-col gap-0.5">
           {ADMIN_LINKS.map(({ href, label }) => (
-            <Button key={href} variant="ghost" size="sm" className="justify-start" render={<Link href={href} />}>
+            <Button key={href} variant="ghost" size="sm" className="justify-start" nativeButton={false} render={<Link href={href} />}>
               {label}
             </Button>
           ))}
@@ -27,4 +27,6 @@ export default function AdminLayout({
       <main className="min-w-0 flex-1">{children}</main>
     </div>
   );
-}
+};
+
+export default AdminLayout;

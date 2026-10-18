@@ -9,20 +9,20 @@ export interface PortainerStack {
   Env: Array<{ name: string; value: string }>;
 }
 
-function getDispatcher(insecureTls: boolean): Dispatcher | undefined {
+const getDispatcher = (insecureTls: boolean): Dispatcher | undefined => {
   if (insecureTls) {
     return new Agent({ connect: { rejectUnauthorized: false } });
   }
   return undefined;
-}
+};
 
-async function portainerFetch<T>(
+const portainerFetch = async <T>(
   baseUrl: string,
   token: string,
   path: string,
   insecureTls: boolean,
   init?: RequestInit,
-): Promise<T> {
+): Promise<T> => {
   const url = `${baseUrl.replace(/\/$/, "")}${path}`;
   const res = await globalThis.fetch(url, {
     ...init,
@@ -39,14 +39,14 @@ async function portainerFetch<T>(
     throw new Error(`Portainer API ${res.status}: ${body}`);
   }
   return res.json() as Promise<T>;
-}
+};
 
 /** Test that we can reach Portainer and list environments. */
-export async function testConnection(
+export const testConnection = async (
   baseUrl: string,
   token: string,
   insecureTls: boolean,
-): Promise<{ ok: boolean; message: string }> {
+): Promise<{ ok: boolean; message: string }> => {
   try {
     const endpoints = await portainerFetch<Array<{ Id: number; Name: string }>>(
       baseUrl,
@@ -58,28 +58,28 @@ export async function testConnection(
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) };
   }
-}
+};
 
 /** List stacks for a given environment. */
-export async function listStacks(
+export const listStacks = async (
   baseUrl: string,
   token: string,
   insecureTls: boolean,
-): Promise<PortainerStack[]> {
+): Promise<PortainerStack[]> => {
   return portainerFetch<PortainerStack[]>(baseUrl, token, "/api/stacks", insecureTls);
-}
+};
 
 /**
  * Redeploy a stack with image re-pull, preserving its env.
  * This is the proven Portainer CE API call from the docs.
  */
-export async function redeployStack(
+export const redeployStack = async (
   baseUrl: string,
   token: string,
   insecureTls: boolean,
   stackId: number,
   endpointId: number,
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string }> => {
   try {
     // Fetch the current stack and its compose file
     const [stack, fileResp] = await Promise.all([
@@ -116,4 +116,4 @@ export async function redeployStack(
       message: err instanceof Error ? err.message : String(err),
     };
   }
-}
+};

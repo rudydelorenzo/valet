@@ -4,7 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import { id } from "@/lib/ids";
 import { discover } from "@/lib/auth/oidc";
 
-export async function GET() {
+export const GET = async () => {
   const providers = await db
     .select({
       id: oidcProviders.id,
@@ -19,9 +19,9 @@ export async function GET() {
     .orderBy(desc(oidcProviders.createdAt));
 
   return Response.json(providers);
-}
+};
 
-export async function POST(request: Request) {
+export const POST = async (request: Request) => {
   const body = await request.json();
   const { name, issuer, clientId, clientSecret, scopes } = body as {
     name?: string;
@@ -61,4 +61,4 @@ export async function POST(request: Request) {
     .returning();
 
   return Response.json(provider, { status: 201 });
-}
+};

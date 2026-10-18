@@ -2,10 +2,10 @@ import { db } from "@/lib/db";
 import { webhookEvents } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 
-export async function GET(
+export const GET = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
 
   const events = await db
@@ -16,4 +16,4 @@ export async function GET(
     .limit(100);
 
   return Response.json(events);
-}
+};

@@ -2,10 +2,10 @@ import { db } from "@/lib/db";
 import { webhooks, portainerInstances } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-export async function GET(
+export const GET = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   const [webhook] = await db
     .select({
@@ -34,12 +34,12 @@ export async function GET(
   }
 
   return Response.json(webhook);
-}
+};
 
-export async function PATCH(
+export const PATCH = async (
   request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   const body = await request.json();
   const updates: Record<string, unknown> = {};
@@ -59,12 +59,12 @@ export async function PATCH(
   }
 
   return Response.json({ ok: true });
-}
+};
 
-export async function DELETE(
+export const DELETE = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const { id } = await params;
   const [deleted] = await db
     .delete(webhooks)
@@ -76,4 +76,4 @@ export async function DELETE(
   }
 
   return Response.json({ ok: true });
-}
+};

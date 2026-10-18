@@ -12,10 +12,10 @@ const timers = new Map<string, ReturnType<typeof setTimeout>>();
  * Authenticated by the token in the URL path.
  * Supports debounce: rapid duplicate calls are coalesced.
  */
-export async function POST(
+export const POST = async (
   request: Request,
   { params }: { params: Promise<{ token: string }> },
-) {
+) => {
   const { token } = await params;
 
   // Look up the webhook by token
@@ -88,4 +88,4 @@ export async function POST(
   );
 
   return Response.json({ received: true, eventId: event.id }, { status: 202 });
-}
+};

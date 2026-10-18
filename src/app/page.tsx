@@ -31,7 +31,7 @@ interface Webhook {
   instanceName: string | null;
 }
 
-export default function Dashboard() {
+const Dashboard = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,8 +108,8 @@ export default function Dashboard() {
 
       {/* Quick actions */}
       <div className="mb-8 flex gap-3">
-        <Button render={<Link href="/instances" />}>+ Add instance</Button>
-        <Button variant="outline" render={<Link href="/webhooks" />}>
+        <Button nativeButton={false} render={<Link href="/instances" />}>+ Add instance</Button>
+        <Button variant="outline" nativeButton={false} render={<Link href="/webhooks" />}>
           + Create webhook
         </Button>
       </div>
@@ -160,9 +160,11 @@ export default function Dashboard() {
       </Card>
     </div>
   );
-}
+};
 
-function StatusBadge({ status }: { status: string }) {
+export default Dashboard;
+
+const StatusBadge = ({ status }: { status: string }) => {
   const variant =
     status === "success"
       ? "default"
@@ -170,4 +172,4 @@ function StatusBadge({ status }: { status: string }) {
         ? "destructive"
         : "secondary";
   return <Badge variant={variant}>{status}</Badge>;
-}
+};
