@@ -1,22 +1,12 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { cookies } from "next/headers";
-
-const COOKIE_NAME = "valet.session";
-const MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
-
-const getSecret = (): Uint8Array => {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        "AUTH_SECRET is not set. Generate one with: openssl rand -base64 32",
-      );
-    }
-    // Dev default — fine for local development, never use in production
-    return new TextEncoder().encode("valet-dev-secret-do-not-use-in-prod");
-  }
-  return new TextEncoder().encode(secret);
-};
+import {
+  SESSION_COOKIE,
+  SESSION_MAX_AGE_SECONDS,
+  JWT_ISSUER,
+  JWT_ALGORITHM,
+} from "@/lib/constants";
+import { getSecret } from "@/lib/auth/secret";
 
 export interface SessionPayload extends JWTPayload {
   sub: string; // provider user id
@@ -29,10 +19,10 @@ export const createSessionJwt = async (
   payload: Omit<SessionPayload, "iat" | "exp" | "iss">,
 ): Promise<string> => {
   return new SignJWT(payload as unknown as JWTPayload)
-    .setProtectedHeader({ alg: "HS256" })
+    .setProtectedHeader({ alg: JWT_ALGORITHM })
     .setIssuedAt()
-    .setExpirationTime(`${MAX_AGE_SECONDS}s`)
-    .setIssuer("valet")
+    .setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`)
+    .setIssuer(JWT_ISSUER)
     .sign(getSecret());
 };
 
@@ -41,7 +31,7 @@ export const verifySessionJwt = async (
 ): Promise<SessionPayload | null> => {
   try {
     const { payload } = await jwtVerify(token, getSecret(), {
-      issuer: "valet",
+      issuer: JWT_ISSUER,
     });
     return payload as SessionPayload;
   } catch {
@@ -52,7 +42,7 @@ export const verifySessionJwt = async (
 /** Read the current session from the cookie. Returns null if absent or invalid. */
 export const getSession = async (): Promise<SessionPayload | null> => {
   const store = await cookies();
-  const token = store.get(COOKIE_NAME)?.value;
+  const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return verifySessionJwt(token);
 };
@@ -60,19 +50,19 @@ export const getSession = async (): Promise<SessionPayload | null> => {
 /** Set the session cookie (called after successful OIDC callback). */
 export const setSessionCookie = async (jwt: string): Promise<void> => {
   const store = await cookies();
-  store.set(COOKIE_NAME, jwt, {
+  store.set(SESSION_COOKIE, jwt, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: MAX_AGE_SECONDS,
+    maxAge: SESSION_MAX_AGE_SECONDS,
   });
 };
 
 /** Clear the session cookie. */
 export const clearSessionCookie = async (): Promise<void> => {
   const store = await cookies();
-  store.set(COOKIE_NAME, "", {
+  store.set(SESSION_COOKIE, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

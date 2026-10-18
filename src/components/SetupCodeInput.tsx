@@ -2,7 +2,8 @@
 
 import { useRef, useCallback, useEffect } from "react";
 
-const CODE_LENGTH = 6;
+import { SETUP_CODE_LENGTH } from "@/lib/constants";
+
 const VALID_CHAR = /[^A-Za-z0-9]/g;
 
 interface SetupCodeInputProps {
@@ -77,13 +78,13 @@ export const SetupCodeInput = ({
       const ch = raw.replace(VALID_CHAR, "").toUpperCase();
       if (!ch && raw !== "") return;
 
-      const next = Object.assign(Array(CODE_LENGTH).fill(""), chars);
+      const next = Object.assign(Array(SETUP_CODE_LENGTH).fill(""), chars);
       next[i] = ch;
-      const result = next.join("").slice(0, CODE_LENGTH);
+      const result = next.join("").slice(0, SETUP_CODE_LENGTH);
       onChange(result);
 
-      if (ch && i < CODE_LENGTH - 1) focus(i + 1);
-      if (ch && i === CODE_LENGTH - 1 && !result.includes(""))
+      if (ch && i < SETUP_CODE_LENGTH - 1) focus(i + 1);
+      if (ch && i === SETUP_CODE_LENGTH - 1 && !result.includes(""))
         onComplete?.(result);
     },
     [chars, onChange, focus, onComplete],
@@ -105,7 +106,7 @@ export const SetupCodeInput = ({
       } else if (e.key === "ArrowLeft" && i > 0) {
         e.preventDefault();
         focus(i - 1);
-      } else if (e.key === "ArrowRight" && i < CODE_LENGTH - 1) {
+      } else if (e.key === "ArrowRight" && i < SETUP_CODE_LENGTH - 1) {
         e.preventDefault();
         focus(i + 1);
       }
@@ -120,11 +121,11 @@ export const SetupCodeInput = ({
         .getData("text")
         .replace(VALID_CHAR, "")
         .toUpperCase()
-        .slice(0, CODE_LENGTH);
-      const next = (pasted + "".repeat(CODE_LENGTH)).slice(0, CODE_LENGTH);
+        .slice(0, SETUP_CODE_LENGTH);
+      const next = (pasted + "".repeat(SETUP_CODE_LENGTH)).slice(0, SETUP_CODE_LENGTH);
       onChange(next);
-      focus(Math.min(pasted.length, CODE_LENGTH - 1));
-      if (pasted.length >= CODE_LENGTH) onComplete?.(next);
+      focus(Math.min(pasted.length, SETUP_CODE_LENGTH - 1));
+      if (pasted.length >= SETUP_CODE_LENGTH) onComplete?.(next);
     },
     [onChange, focus, onComplete],
   );

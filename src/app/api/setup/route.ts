@@ -3,17 +3,8 @@ import { oidcProviders } from "@/lib/db/schema";
 import { getOrGenerateSetupCode, verifySetupCode } from "@/lib/setup";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-
-const getSecret = (): Uint8Array => {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("AUTH_SECRET is not set");
-    }
-    return new TextEncoder().encode("valet-dev-secret-do-not-use-in-prod");
-  }
-  return new TextEncoder().encode(secret);
-};
+import { getSecret } from "@/lib/auth/secret";
+import { SETUP_COOKIE, JWT_ISSUER, SETUP_COOKIE_MAX_AGE_SECONDS } from "@/lib/constants";
 
 /**
  * GET — check setup status.
@@ -33,10 +24,10 @@ export const GET = async () => {
 
   // Check if the user already verified via setup cookie
   const store = await cookies();
-  const setupToken = store.get("valet.setup")?.value;
+  const setupToken = store.get(SETUP_COOKIE)?.value;
   if (setupToken) {
     try {
-      await jwtVerify(setupToken, getSecret(), { issuer: "valet" });
+      await jwtVerify(setupToken, getSecret(), { issuer: JWT_ISSUER });
       // Verified but no provider — let the frontend show the provider step
       return Response.json({ configured: false, verified: true });
     } catch {
@@ -63,19 +54,19 @@ export const POST = async (request: Request) => {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("1h")
-    .setIssuer("valet")
+    .setIssuer(JWT_ISSUER)
     .sign(getSecret());
 
   const response = Response.json({ ok: true });
   response.headers.set(
     "Set-Cookie",
     [
-      `valet.setup=${jwt}`,
+      `${SETUP_COOKIE}=${jwt}`,
       "Path=/",
       "HttpOnly",
       "Secure",
       "SameSite=Lax",
-      "Max-Age=3600",
+      `Max-Age=${SETUP_COOKIE_MAX_AGE_SECONDS}`,
     ].join("; "),
   );
   return response;

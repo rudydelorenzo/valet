@@ -3,12 +3,14 @@
  * printed to the console when the /api/setup endpoint is first hit.
  */
 
+import { SETUP_CODE_LENGTH } from "./constants";
+
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 let setupCode: string | null = null;
 
 const generateCode = (): string => {
-  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  const bytes = crypto.getRandomValues(new Uint8Array(SETUP_CODE_LENGTH));
   return Array.from(bytes, (b) => CODE_CHARS[b % CODE_CHARS.length]).join("");
 };
 

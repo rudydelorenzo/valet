@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { webhooks, portainerInstances } from "@/lib/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { id } from "@/lib/ids";
+import { DEFAULT_DEBOUNCE_SECONDS } from "@/lib/constants";
 import crypto from "node:crypto";
 
 export const GET = async () => {
@@ -63,14 +63,13 @@ export const POST = async (request: Request) => {
   const [webhook] = await db
     .insert(webhooks)
     .values({
-      id: id("whk"),
       name,
       token,
       portainerInstanceId,
       stackId,
       endpointId,
       stackName,
-      debounceSeconds: debounceSeconds ?? 5,
+      debounceSeconds: debounceSeconds ?? DEFAULT_DEBOUNCE_SECONDS,
     })
     .returning();
 

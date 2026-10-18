@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { webhooks, webhookEvents, portainerInstances } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { id } from "@/lib/ids";
+import { EVENT_STATUS_PENDING, EVENT_SOURCE_MANUAL, EVENT_STATUS_SUCCESS, EVENT_STATUS_ERROR } from "@/lib/constants";
 import { redeployStack } from "@/lib/portainer";
 
 /**
@@ -37,10 +37,9 @@ export const POST = async (
   const [event] = await db
     .insert(webhookEvents)
     .values({
-      id: id("evt"),
       webhookId: webhook.id,
-      status: "pending",
-      triggerSource: "manual",
+      status: EVENT_STATUS_PENDING,
+      triggerSource: EVENT_SOURCE_MANUAL,
     })
     .returning();
 
@@ -57,7 +56,7 @@ export const POST = async (
   await db
     .update(webhookEvents)
     .set({
-      status: result.success ? "success" : "error",
+      status: result.success ? EVENT_STATUS_SUCCESS : EVENT_STATUS_ERROR,
       message: result.message,
     })
     .where(eq(webhookEvents.id, event.id));

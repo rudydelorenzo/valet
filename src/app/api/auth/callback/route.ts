@@ -9,6 +9,7 @@ import {
   clearPKCECookie,
 } from "@/lib/auth/oidc";
 import { createSessionJwt, setSessionCookie } from "@/lib/auth/session";
+import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS, CALLBACK_PATH } from "@/lib/constants";
 
 export const GET = async (request: NextRequest) => {
   const url = request.nextUrl;
@@ -48,7 +49,7 @@ export const GET = async (request: NextRequest) => {
   try {
     const discovery = await discover(provider.issuer);
     const baseUrl = process.env.APP_BASE_URL || request.nextUrl.origin;
-    const redirectUri = `${baseUrl}/api/auth/callback`;
+    const redirectUri = `${baseUrl}${CALLBACK_PATH}`;
 
     const { userinfo } = await exchangeCode({
       discovery,
@@ -69,12 +70,12 @@ export const GET = async (request: NextRequest) => {
 
     const response = NextResponse.redirect(new URL("/", request.url));
     // Set session cookie on the redirect response
-    response.cookies.set("valet.session", jwt, {
+    response.cookies.set(SESSION_COOKIE, jwt, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 30 * 24 * 60 * 60,
+      maxAge: SESSION_MAX_AGE_SECONDS,
     });
     return response;
   } catch (err) {

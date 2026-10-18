@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { SetupCodeInput } from "@/components/SetupCodeInput";
 import { CopyableContent } from "@/components/CopyableContent";
 import { Terminal, KeyRound, CheckCircle2 } from "lucide-react";
+import { CALLBACK_PATH, DEFAULT_OIDC_SCOPES, SETUP_CODE_LENGTH } from "@/lib/constants";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -220,7 +221,7 @@ const VerifyStep = ({
             type="submit"
             className="w-full"
             size="lg"
-            disabled={verifying || code.replace(/\s/g, "").length < 6}
+            disabled={verifying || code.replace(/\s/g, "").length < SETUP_CODE_LENGTH}
           >
             {verifying ? "Verifying…" : "Verify & continue"}
           </Button>
@@ -247,7 +248,7 @@ const ProviderStep = ({
     issuer: "",
     clientId: "",
     clientSecret: "",
-    scopes: "openid email profile",
+    scopes: DEFAULT_OIDC_SCOPES,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -290,7 +291,7 @@ const ProviderStep = ({
       <CardContent>
         <CopyableContent
           label="Redirect / callback URL"
-          value={`${typeof window !== "undefined" ? window.location.origin : ""}/api/auth/callback`}
+          value={`${typeof window !== "undefined" ? window.location.origin : ""}${CALLBACK_PATH}`}
         />
 
         <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">

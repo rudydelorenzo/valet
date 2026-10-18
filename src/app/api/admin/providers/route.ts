@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { oidcProviders } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { id } from "@/lib/ids";
+import { DEFAULT_OIDC_SCOPES } from "@/lib/constants";
 import { discover } from "@/lib/auth/oidc";
 
 export const GET = async () => {
@@ -51,12 +51,11 @@ export const POST = async (request: Request) => {
   const [provider] = await db
     .insert(oidcProviders)
     .values({
-      id: id("prov"),
       name,
       issuer,
       clientId,
       clientSecret,
-      scopes: scopes || "openid email profile",
+      scopes: scopes || DEFAULT_OIDC_SCOPES,
     })
     .returning();
 

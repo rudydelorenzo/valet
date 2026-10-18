@@ -3,18 +3,8 @@ import { oidcProviders } from "@/lib/db/schema";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { discover } from "@/lib/auth/oidc";
-import { id } from "@/lib/ids";
-
-const getSecret = (): Uint8Array => {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("AUTH_SECRET is not set");
-    }
-    return new TextEncoder().encode("valet-dev-secret-do-not-use-in-prod");
-  }
-  return new TextEncoder().encode(secret);
-};
+import { getSecret } from "@/lib/auth/secret";
+import { SETUP_COOKIE, JWT_ISSUER, DEFAULT_OIDC_SCOPES } from "@/lib/constants";
 
 /**
  * POST — add the first OIDC provider during initial setup.
@@ -26,7 +16,7 @@ const getSecret = (): Uint8Array => {
 export const POST = async (request: Request) => {
   // 1. Verify setup cookie
   const store = await cookies();
-  const setupToken = store.get("valet.setup")?.value;
+  const setupToken = store.get(SETUP_COOKIE)?.value;
   if (!setupToken) {
     return Response.json(
       { error: "Setup token required" },
@@ -35,7 +25,7 @@ export const POST = async (request: Request) => {
   }
 
   try {
-    await jwtVerify(setupToken, getSecret(), { issuer: "valet" });
+    await jwtVerify(setupToken, getSecret(), { issuer: JWT_ISSUER });
   } catch {
     return Response.json(
       { error: "Invalid or expired setup token" },
@@ -84,12 +74,11 @@ export const POST = async (request: Request) => {
   const [provider] = await db
     .insert(oidcProviders)
     .values({
-      id: id("prov"),
       name,
       issuer,
       clientId,
       clientSecret,
-      scopes: scopes || "openid email profile",
+      scopes: scopes || DEFAULT_OIDC_SCOPES,
     })
     .returning();
 

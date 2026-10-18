@@ -9,6 +9,7 @@ import {
   generateCodeChallenge,
   setPKCECookie,
 } from "@/lib/auth/oidc";
+import { CALLBACK_PATH } from "@/lib/constants";
 
 export const GET = async (request: NextRequest) => {
   // Find the first enabled provider
@@ -30,7 +31,7 @@ export const GET = async (request: NextRequest) => {
     const state = generateCodeVerifier(); // reuse as random state
 
     const baseUrl = process.env.APP_BASE_URL || request.nextUrl.origin;
-    const redirectUri = `${baseUrl}/api/auth/callback`;
+    const redirectUri = `${baseUrl}${CALLBACK_PATH}`;
 
     const authUrl = buildAuthorizationUrl({
       discovery,

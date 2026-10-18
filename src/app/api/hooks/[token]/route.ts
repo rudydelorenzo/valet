@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { webhooks, webhookEvents, portainerInstances } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { id } from "@/lib/ids";
+import { EVENT_STATUS_PENDING, EVENT_SOURCE_WEBHOOK, DEFAULT_DEBOUNCE_SECONDS, EVENT_STATUS_SUCCESS, EVENT_STATUS_ERROR } from "@/lib/constants";
 import { redeployStack } from "@/lib/portainer";
 
 // In-memory debounce timers — keyed by webhook id
@@ -37,10 +37,9 @@ export const POST = async (
   const [event] = await db
     .insert(webhookEvents)
     .values({
-      id: id("evt"),
       webhookId: webhook.id,
-      status: "pending",
-      triggerSource: "webhook",
+      status: EVENT_STATUS_PENDING,
+      triggerSource: EVENT_SOURCE_WEBHOOK,
     })
     .returning();
 
@@ -48,7 +47,7 @@ export const POST = async (
   const existing = timers.get(webhook.id);
   if (existing) clearTimeout(existing);
 
-  const delay = (webhook.debounceSeconds ?? 5) * 1000;
+  const delay = (webhook.debounceSeconds ?? DEFAULT_DEBOUNCE_SECONDS) * 1000;
 
   timers.set(
     webhook.id,
@@ -64,7 +63,7 @@ export const POST = async (
       if (!instance) {
         await db
           .update(webhookEvents)
-          .set({ status: "error", message: "Portainer instance not found" })
+          .set({ status: EVENT_STATUS_ERROR, message: "Portainer instance not found" })
           .where(eq(webhookEvents.id, event.id));
         return;
       }
@@ -80,7 +79,7 @@ export const POST = async (
       await db
         .update(webhookEvents)
         .set({
-          status: result.success ? "success" : "error",
+          status: result.success ? EVENT_STATUS_SUCCESS : EVENT_STATUS_ERROR,
           message: result.message,
         })
         .where(eq(webhookEvents.id, event.id));

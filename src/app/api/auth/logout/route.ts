@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SESSION_COOKIE } from "@/lib/constants";
 
 export const GET = async (request: NextRequest) => {
   const response = NextResponse.redirect(new URL("/", request.url));
-  response.cookies.set("valet.session", "", {
+  response.cookies.set(SESSION_COOKIE, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

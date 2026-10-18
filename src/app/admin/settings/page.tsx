@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { CopyableContent } from "@/components/CopyableContent";
 import { toast } from "sonner";
+import { DEFAULT_OIDC_SCOPES } from "@/lib/constants";
 
 interface Provider {
   id: string;
@@ -35,7 +36,7 @@ const AdminSettingsPage = () => {
     issuer: "",
     clientId: "",
     clientSecret: "",
-    scopes: "openid email profile",
+    scopes: DEFAULT_OIDC_SCOPES,
   });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -56,7 +57,7 @@ const AdminSettingsPage = () => {
       issuer: "",
       clientId: "",
       clientSecret: "",
-      scopes: "openid email profile",
+      scopes: DEFAULT_OIDC_SCOPES,
     });
     setError("");
     setEditingId(null);

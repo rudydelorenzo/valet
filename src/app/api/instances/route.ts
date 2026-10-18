@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { portainerInstances } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
-import { id } from "@/lib/ids";
 import { testConnection } from "@/lib/portainer";
 
 export const GET = async () => {
@@ -44,7 +43,6 @@ export const POST = async (request: Request) => {
   const [instance] = await db
     .insert(portainerInstances)
     .values({
-      id: id("inst"),
       name,
       url,
       token,

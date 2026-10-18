@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
-
-const COOKIE_NAME = "valet.session";
-
-const getSecret = (): Uint8Array => {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("AUTH_SECRET is not set");
-    }
-    return new TextEncoder().encode("valet-dev-secret-do-not-use-in-prod");
-  }
-  return new TextEncoder().encode(secret);
-};
+import { SESSION_COOKIE, JWT_ISSUER } from "@/lib/constants";
+import { getSecret } from "@/lib/auth/secret";
 
 const PUBLIC_PREFIXES = [
   "/api/hooks/",   // inbound webhook receiver
@@ -37,18 +26,18 @@ export const proxy = async (request: NextRequest) => {
   }
 
   // Check session cookie
-  const token = request.cookies.get(COOKIE_NAME)?.value;
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
   if (!token) {
     return NextResponse.redirect(new URL("/api/auth/login", request.url));
   }
 
   try {
-    await jwtVerify(token, getSecret(), { issuer: "valet" });
+    await jwtVerify(token, getSecret(), { issuer: JWT_ISSUER });
     return NextResponse.next();
   } catch {
     // Invalid or expired — clear and redirect to login
     const res = NextResponse.redirect(new URL("/api/auth/login", request.url));
-    res.cookies.set(COOKIE_NAME, "", { maxAge: 0, path: "/" });
+    res.cookies.set(SESSION_COOKIE, "", { maxAge: 0, path: "/" });
     return res;
   }
 };

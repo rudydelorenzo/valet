@@ -2,9 +2,7 @@
  * Lightweight OIDC client — no heavy dependencies.
  * Handles discovery, PKCE auth URL generation, and code → token exchange.
  */
-
-const PKCE_COOKIE = "valet.pkce";
-const PKCE_MAX_AGE = 300; // 5 minutes
+import { PKCE_COOKIE, PKCE_COOKIE_MAX_AGE_SECONDS } from "@/lib/constants";
 
 // ── OIDC discovery ──────────────────────────────────────────────────
 
@@ -142,7 +140,7 @@ export const setPKCECookie = async (data: PKCEData): Promise<void> => {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: PKCE_MAX_AGE,
+    maxAge: PKCE_COOKIE_MAX_AGE_SECONDS,
   });
 };
 
