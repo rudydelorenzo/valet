@@ -1,35 +1,13 @@
-import { db } from "@/lib/db";
-import { webhooks, portainerInstances } from "@/lib/db/schema";
-import { desc, eq, and } from "drizzle-orm";
-import { DEFAULT_DEBOUNCE_SECONDS } from "@/lib/constants";
+import {
+  listWebhooksByUser,
+  createWebhook,
+} from "@/lib/db/webhooks";
+import { getPortainerInstance } from "@/lib/db/portainer-instances";
 import { requireAuth } from "@/lib/auth/guard";
-import crypto from "node:crypto";
 
 export const GET = async () => {
   const userId = await requireAuth();
-
-  const rows = await db
-    .select({
-      id: webhooks.id,
-      name: webhooks.name,
-      token: webhooks.token,
-      portainerInstanceId: webhooks.portainerInstanceId,
-      stackId: webhooks.stackId,
-      endpointId: webhooks.endpointId,
-      stackName: webhooks.stackName,
-      enabled: webhooks.enabled,
-      debounceSeconds: webhooks.debounceSeconds,
-      createdAt: webhooks.createdAt,
-      instanceName: portainerInstances.name,
-    })
-    .from(webhooks)
-    .leftJoin(
-      portainerInstances,
-      eq(webhooks.portainerInstanceId, portainerInstances.id),
-    )
-    .where(eq(webhooks.userId, userId))
-    .orderBy(desc(webhooks.createdAt));
-
+  const rows = await listWebhooksByUser(userId);
   return Response.json(rows);
 };
 
@@ -45,57 +23,61 @@ export const POST = async (request: Request) => {
     stackName,
     debounceSeconds,
   } = body as {
-    name?: string;
-    portainerInstanceId?: string;
-    stackId?: number;
-    endpointId?: number;
-    stackName?: string;
-    debounceSeconds?: number;
+    name?: unknown;
+    portainerInstanceId?: unknown;
+    stackId?: unknown;
+    endpointId?: unknown;
+    stackName?: unknown;
+    debounceSeconds?: unknown;
   };
 
-  if (!name || !portainerInstanceId || stackId == null || endpointId == null || !stackName) {
+  // Validate required fields
+  if (
+    typeof name !== "string" || name.trim().length === 0 ||
+    typeof portainerInstanceId !== "string" ||
+    !Number.isInteger(stackId) || (stackId as number) < 0 ||
+    !Number.isInteger(endpointId) || (endpointId as number) < 0 ||
+    typeof stackName !== "string" || stackName.trim().length === 0
+  ) {
     return Response.json(
       {
         error:
-          "name, portainerInstanceId, stackId, endpointId, and stackName are required",
+          "name (string), portainerInstanceId (string), stackId (integer), endpointId (integer), and stackName (string) are required",
       },
       { status: 400 },
     );
   }
 
-  // Verify the instance belongs to this user
-  const [instance] = await db
-    .select({ id: portainerInstances.id })
-    .from(portainerInstances)
-    .where(and(
-      eq(portainerInstances.id, portainerInstanceId),
-      eq(portainerInstances.userId, userId),
-    ))
-    .limit(1);
+  // Validate optional debounceSeconds
+  if (
+    debounceSeconds !== undefined &&
+    (!Number.isInteger(debounceSeconds) || (debounceSeconds as number) < 0 || (debounceSeconds as number) > 86400)
+  ) {
+    return Response.json(
+      { error: "debounceSeconds must be an integer between 0 and 86400" },
+      { status: 400 },
+    );
+  }
 
-  if (!instance) {
+  // Verify the instance belongs to this user
+  const instance = await getPortainerInstance(portainerInstanceId as string);
+
+  if (!instance || instance.userId !== userId) {
     return Response.json(
       { error: "Instance not found" },
       { status: 404 },
     );
   }
 
-  // Generate a random token for the webhook URL
-  const token = crypto.randomBytes(32).toString("base64url");
-
-  const [webhook] = await db
-    .insert(webhooks)
-    .values({
-      userId,
-      name,
-      token,
-      portainerInstanceId,
-      stackId,
-      endpointId,
-      stackName,
-      debounceSeconds: debounceSeconds ?? DEFAULT_DEBOUNCE_SECONDS,
-    })
-    .returning();
+  const webhook = await createWebhook({
+    userId,
+    name: (name as string).trim(),
+    portainerInstanceId: portainerInstanceId as string,
+    stackId: stackId as number,
+    endpointId: endpointId as number,
+    stackName: (stackName as string).trim(),
+    debounceSeconds: (debounceSeconds as number | undefined),
+  });
 
   return Response.json(webhook, { status: 201 });
 };

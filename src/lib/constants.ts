@@ -23,11 +23,21 @@ export const DEFAULT_DB_PATH = "./data/valet.db";
 export const CALLBACK_PATH = "/api/auth/callback";
 
 // ── Required OIDC scopes ───────────────────────────────────────────
-export const REQUIRED_OIDC_SCOPES = ["openid", "email"];
+export const REQUIRED_OIDC_SCOPES = ["openid", "email", "profile"];
 
-// ── Webhook event status / source ──────────────────────────────────
-export const EVENT_STATUS_PENDING = "pending";
-export const EVENT_STATUS_SUCCESS = "success";
-export const EVENT_STATUS_ERROR = "error";
-export const EVENT_SOURCE_WEBHOOK = "webhook";
-export const EVENT_SOURCE_MANUAL = "manual";
+// ── Webhook events ─────────────────────────────────────────────────
+export const EVENT_STATUS = {
+  QUEUED: "queued",
+  RUNNING: "running",
+  SUCCESS: "success",
+  ERROR: "error",
+} as const;
+
+export const EVENT_TYPE = {
+  DEPLOY: "deploy",
+} as const;
+
+export const EVENT_SOURCE = {
+  WEBHOOK: "webhook",
+  MANUAL: "manual",
+} as const;

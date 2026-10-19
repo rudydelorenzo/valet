@@ -5,14 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { EventLog } from "@/components/EventLog";
 import { toast } from "sonner";
 
 interface Webhook {
@@ -29,14 +22,6 @@ interface Webhook {
   createdAt: string;
 }
 
-interface Event {
-  id: string;
-  status: string;
-  message: string | null;
-  triggerSource: string;
-  createdAt: string;
-}
-
 const WebhookDetailContent = ({
   params,
 }: {
@@ -45,23 +30,15 @@ const WebhookDetailContent = ({
   const { id } = use(params);
   const router = useRouter();
   const [webhook, setWebhook] = useState<Webhook | null>(null);
-  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
-
-  const load = () =>
-    Promise.all([
-      fetch(`/api/webhooks/${id}`).then((r) => r.json()),
-      fetch(`/api/webhooks/${id}/events`).then((r) => r.json()),
-    ])
-      .then(([wh, ev]) => {
-        setWebhook(wh);
-        setEvents(ev);
-      })
-      .finally(() => setLoading(false));
+  const [eventLogKey, setEventLogKey] = useState(0);
 
   useEffect(() => {
-    load();
+    fetch(`/api/webhooks/${id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((wh) => setWebhook(wh && !wh.error ? wh : null))
+      .finally(() => setLoading(false));
   }, [id]);
 
   const webhookUrl = webhook
@@ -80,24 +57,29 @@ const WebhookDetailContent = ({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled: !webhook.enabled }),
     });
-    load();
+    // Refresh webhook data
+    fetch(`/api/webhooks/${id}`)
+      .then((r) => r.json())
+      .then(setWebhook);
   };
 
   const handleTrigger = async () => {
     setTriggering(true);
-    const res = await fetch(`/api/webhooks/${id}/trigger`, { method: "POST" });
-    const data = await res.json();
-    if (data.success) {
-      toast.success(data.message || "Redeploy triggered");
-    } else {
-      toast.error(data.message || "Trigger failed");
+    try {
+      const res = await fetch(`/api/webhooks/${id}/trigger`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || "Redeploy triggered");
+      } else {
+        toast.error(data.message || "Trigger failed");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Trigger failed");
+    } finally {
+      setTriggering(false);
     }
-    setTriggering(false);
-    setTimeout(() => {
-      fetch(`/api/webhooks/${id}/events`)
-        .then((r) => r.json())
-        .then(setEvents);
-    }, 1000);
+    // Nudge the event log to refresh
+    setEventLogKey((k) => k + 1);
   };
 
   const handleDelete = async () => {
@@ -204,50 +186,11 @@ const WebhookDetailContent = ({
           <CardTitle>Event log</CardTitle>
         </CardHeader>
         <CardContent>
-          {events.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No events yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Message</TableHead>
-                  <TableHead>Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {events.map((evt) => (
-                  <TableRow key={evt.id}>
-                    <TableCell className="font-mono text-xs">
-                      {evt.id}
-                    </TableCell>
-                    <TableCell>{evt.triggerSource}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          evt.status === "success"
-                            ? "default"
-                            : evt.status === "error"
-                              ? "destructive"
-                              : "secondary"
-                        }
-                      >
-                        {evt.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate text-muted-foreground">
-                      {evt.message ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(evt.createdAt).toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <EventLog
+            key={eventLogKey}
+            fetchUrl={`/api/webhooks/${id}/events`}
+            live
+          />
         </CardContent>
       </Card>
     </div>

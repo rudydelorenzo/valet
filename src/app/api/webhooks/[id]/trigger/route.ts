@@ -1,12 +1,13 @@
-import { db } from "@/lib/db";
-import { webhooks, webhookEvents, portainerInstances } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
-import { EVENT_STATUS_PENDING, EVENT_SOURCE_MANUAL, EVENT_STATUS_SUCCESS, EVENT_STATUS_ERROR } from "@/lib/constants";
+import { getWebhook } from "@/lib/db/webhooks";
+import { createEvent, setEventStatus } from "@/lib/db/webhook-events";
+import { EVENT_SOURCE, EVENT_TYPE } from "@/lib/constants";
 import { requireAuth } from "@/lib/auth/guard";
-import { redeployStack } from "@/lib/portainer";
+import { consumeWebhookJob } from "@/lib/worker/jobs/deploy";
+import { ensureWorker } from "@/lib/worker";
 
 /**
  * POST — manually trigger a webhook redeploy (for testing from the UI).
+ * Runs the deploy synchronously and returns the result.
  */
 export const POST = async (
   _request: Request,
@@ -15,53 +16,23 @@ export const POST = async (
   const userId = await requireAuth();
   const { id: webhookId } = await params;
 
-  const [webhook] = await db
-    .select()
-    .from(webhooks)
-    .where(and(eq(webhooks.id, webhookId), eq(webhooks.userId, userId)))
-    .limit(1);
-
-  if (!webhook) {
+  const webhook = await getWebhook(webhookId);
+  if (!webhook || webhook.userId !== userId) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
-  const [instance] = await db
-    .select()
-    .from(portainerInstances)
-    .where(eq(portainerInstances.id, webhook.portainerInstanceId))
-    .limit(1);
+  const event = await createEvent(webhook.id, EVENT_TYPE.DEPLOY, EVENT_SOURCE.MANUAL);
 
-  if (!instance) {
-    return Response.json({ error: "Portainer instance not found" }, { status: 404 });
-  }
+  const result = await consumeWebhookJob(event);
 
-  // Log the event
-  const [event] = await db
-    .insert(webhookEvents)
-    .values({
-      webhookId: webhook.id,
-      status: EVENT_STATUS_PENDING,
-      triggerSource: EVENT_SOURCE_MANUAL,
-    })
-    .returning();
-
-  // Redeploy
-  const result = await redeployStack(
-    instance.url,
-    instance.token,
-    instance.insecureTls,
-    webhook.stackId,
-    webhook.endpointId,
+  await setEventStatus(
+    event.id,
+    result.success ? "success" : "error",
+    result.message,
   );
 
-  // Update the event
-  await db
-    .update(webhookEvents)
-    .set({
-      status: result.success ? EVENT_STATUS_SUCCESS : EVENT_STATUS_ERROR,
-      message: result.message,
-    })
-    .where(eq(webhookEvents.id, event.id));
+  // Drain any queued webhook events that arrived while we were deploying
+  ensureWorker();
 
-  return Response.json(result);
+  return Response.json({ ...result, eventId: event.id });
 };

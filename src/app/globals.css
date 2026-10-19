@@ -149,31 +149,30 @@
   .btn-tactile {
     background: linear-gradient(
       to bottom,
-      oklch(from var(--primary) calc(l + 0.06) c h) 0%,
-      var(--primary) 100%
+      oklch(from var(--primary) calc(l + 0.3) c h) 0%,
+      oklch(from var(--primary) calc(l + 0.06) c h) 50%,
+      oklch(from var(--primary) calc(l - 0.03) c h) 100%
     );
-    box-shadow:
-      0 1px 2px oklch(0 0 0 / 0.12),
-      inset 0 1px 0 oklch(1 0 0 / 0.08);
-    border: 1px solid oklch(from var(--primary) calc(l - 0.04) c h);
+    box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.15);
+    border: 1px solid oklch(from var(--primary) calc(l - 0.06) c h);
   }
   .btn-tactile:hover {
     background: linear-gradient(
       to bottom,
-      oklch(from var(--primary) calc(l + 0.03) c h) 0%,
-      oklch(from var(--primary) calc(l - 0.03) c h) 100%
+      oklch(from var(--primary) calc(l + 0.24) c h) 0%,
+      oklch(from var(--primary) calc(l + 0.04) c h) 50%,
+      oklch(from var(--primary) calc(l - 0.04) c h) 100%
     );
-    box-shadow:
-      0 1px 3px oklch(0 0 0 / 0.18),
-      inset 0 1px 0 oklch(1 0 0 / 0.1);
+    box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.18);
   }
   .btn-tactile:active {
     background: linear-gradient(
       to bottom,
-      oklch(from var(--primary) calc(l - 0.02) c h) 0%,
-      oklch(from var(--primary) calc(l + 0.03) c h) 100%
+      oklch(from var(--primary) calc(l - 0.04) c h) 0%,
+      oklch(from var(--primary) calc(l + 0.04) c h) 50%,
+      oklch(from var(--primary) calc(l + 0.18) c h) 100%
     );
-    box-shadow: inset 0 1px 3px oklch(0 0 0 / 0.25);
+    box-shadow: inset 0 2px 5px oklch(0 0 0 / 0.25);
   }
   .btn-tactile-outline {
     box-shadow: 0 1px 1px oklch(0 0 0 / 0.04);

@@ -4,24 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-
-interface Event {
-  id: string;
-  webhookId: string;
-  status: string;
-  message: string | null;
-  triggerSource: string;
-  createdAt: string;
-}
+import { EventLog } from "@/components/EventLog";
 
 interface Webhook {
   id: string;
@@ -32,29 +15,13 @@ interface Webhook {
 }
 
 const Dashboard = () => {
-  const [events, setEvents] = useState<Event[]>([]);
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/webhooks")
       .then((r) => r.json())
-      .then((whks: Webhook[]) => {
-        setWebhooks(whks);
-        return Promise.all(
-          whks.map((w) =>
-            fetch(`/api/webhooks/${w.id}/events`).then((r) => r.json()),
-          ),
-        );
-      })
-      .then((nested) => {
-        const all = nested.flat() as Event[];
-        all.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        );
-        setEvents(all.slice(0, 20));
-      })
+      .then((whks: Webhook[]) => setWebhooks(whks))
       .finally(() => setLoading(false));
   }, []);
 
@@ -94,16 +61,6 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Recent events
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-semibold">{events.length}</div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Quick actions */}
@@ -120,42 +77,7 @@ const Dashboard = () => {
           <CardTitle>Recent events</CardTitle>
         </CardHeader>
         <CardContent>
-          {events.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No events yet. Create a webhook and trigger it to see events here.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Message</TableHead>
-                  <TableHead>Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {events.map((evt) => (
-                  <TableRow key={evt.id}>
-                    <TableCell className="font-mono text-xs">
-                      {evt.id}
-                    </TableCell>
-                    <TableCell>{evt.triggerSource}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={evt.status} />
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate text-muted-foreground">
-                      {evt.message ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(evt.createdAt).toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <EventLog fetchUrl="/api/events" limit={20} />
         </CardContent>
       </Card>
     </div>
@@ -163,13 +85,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-const StatusBadge = ({ status }: { status: string }) => {
-  const variant =
-    status === "success"
-      ? "default"
-      : status === "error"
-        ? "destructive"
-        : "secondary";
-  return <Badge variant={variant}>{status}</Badge>;
-};

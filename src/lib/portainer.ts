@@ -9,11 +9,14 @@ export interface PortainerStack {
   Env: Array<{ name: string; value: string }>;
 }
 
+// Shared undici agent — reused across requests to avoid per-request TLS handshakes.
+let _insecureAgent: Agent | undefined;
 const getDispatcher = (insecureTls: boolean): Dispatcher | undefined => {
-  if (insecureTls) {
-    return new Agent({ connect: { rejectUnauthorized: false } });
+  if (!insecureTls) return undefined;
+  if (!_insecureAgent) {
+    _insecureAgent = new Agent({ connect: { rejectUnauthorized: false } });
   }
-  return undefined;
+  return _insecureAgent;
 };
 
 const portainerFetch = async <T>(
@@ -36,7 +39,9 @@ const portainerFetch = async <T>(
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Portainer API ${res.status}: ${body}`);
+    // Truncate long error bodies (e.g. HTML error pages)
+    const truncated = body.length > 500 ? body.slice(0, 500) + "…" : body;
+    throw new Error(`Portainer API ${res.status}: ${truncated}`);
   }
   return res.json() as Promise<T>;
 };
@@ -71,7 +76,11 @@ export const listStacks = async (
 
 /**
  * Redeploy a stack with image re-pull, preserving its env.
- * This is the proven Portainer CE API call from the docs.
+ *
+ * Uses the Portainer CE stack update API (PUT /api/stacks/{id}).
+ * Field names use PascalCase per the official API docs.
+ * `RepullImageAndRedeploy` replaces the deprecated `PullImage` (2.36+).
+ * Both are sent for backward compatibility with older Portainer versions.
  */
 export const redeployStack = async (
   baseUrl: string,
@@ -92,28 +101,39 @@ export const redeployStack = async (
       ),
     ]);
 
-    // Redeploy with pullImage: true, preserving env
+    // Redeploy with image re-pull, preserving env.
+    // Use the stack's own EndpointId for correctness (it may have changed).
+    const eid = stack.EndpointId || endpointId;
+
     await portainerFetch<unknown>(
       baseUrl,
       token,
-      `/api/stacks/${stackId}?endpointId=${endpointId}`,
+      `/api/stacks/${stackId}?endpointId=${eid}`,
       insecureTls,
       {
         method: "PUT",
         body: JSON.stringify({
-          stackFileContent: fileResp.StackFileContent,
-          env: stack.Env || [],
-          prune: false,
-          pullImage: true,
+          StackFileContent: fileResp.StackFileContent,
+          Env: stack.Env || [],
+          Prune: false,
+          PullImage: true,
+          RepullImageAndRedeploy: true,
         }),
       },
     );
 
     return { success: true, message: `Stack "${stack.Name}" redeployed successfully` };
   } catch (err) {
-    return {
-      success: false,
-      message: err instanceof Error ? err.message : String(err),
-    };
+    const msg = err instanceof Error ? err.message : String(err);
+
+    // Portainer returns 409 when a deployment is already in progress
+    if (msg.includes("409") && msg.includes("already in progress")) {
+      return {
+        success: false,
+        message: "Stack deployment is already in progress — try again shortly",
+      };
+    }
+
+    return { success: false, message: msg };
   }
 };

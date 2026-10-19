@@ -1,6 +1,4 @@
-import { db } from "@/lib/db";
-import { webhooks, portainerInstances } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { getWebhook, updateWebhook, deleteWebhook } from "@/lib/db/webhooks";
 import { requireAuth } from "@/lib/auth/guard";
 
 export const GET = async (
@@ -10,29 +8,8 @@ export const GET = async (
   const userId = await requireAuth();
   const { id } = await params;
 
-  const [webhook] = await db
-    .select({
-      id: webhooks.id,
-      name: webhooks.name,
-      token: webhooks.token,
-      portainerInstanceId: webhooks.portainerInstanceId,
-      stackId: webhooks.stackId,
-      endpointId: webhooks.endpointId,
-      stackName: webhooks.stackName,
-      enabled: webhooks.enabled,
-      debounceSeconds: webhooks.debounceSeconds,
-      createdAt: webhooks.createdAt,
-      instanceName: portainerInstances.name,
-    })
-    .from(webhooks)
-    .leftJoin(
-      portainerInstances,
-      eq(webhooks.portainerInstanceId, portainerInstances.id),
-    )
-    .where(and(eq(webhooks.id, id), eq(webhooks.userId, userId)))
-    .limit(1);
-
-  if (!webhook) {
+  const webhook = await getWebhook(id);
+  if (!webhook || webhook.userId !== userId) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -46,22 +23,44 @@ export const PATCH = async (
   const userId = await requireAuth();
   const { id } = await params;
 
-  const body = await request.json();
-  const updates: Record<string, unknown> = {};
-
-  if (body.name !== undefined) updates.name = body.name;
-  if (body.enabled !== undefined) updates.enabled = body.enabled;
-  if (body.debounceSeconds !== undefined) updates.debounceSeconds = body.debounceSeconds;
-
-  const [updated] = await db
-    .update(webhooks)
-    .set(updates)
-    .where(and(eq(webhooks.id, id), eq(webhooks.userId, userId)))
-    .returning();
-
-  if (!updated) {
+  const webhook = await getWebhook(id);
+  if (!webhook || webhook.userId !== userId) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
+
+  const body = await request.json();
+  const updates: { name?: string; enabled?: boolean; debounceSeconds?: number } = {};
+
+  if (body.name !== undefined) {
+    if (typeof body.name !== "string" || body.name.trim().length === 0) {
+      return Response.json({ error: "name must be a non-empty string" }, { status: 400 });
+    }
+    updates.name = body.name.trim();
+  }
+
+  if (body.enabled !== undefined) {
+    if (typeof body.enabled !== "boolean") {
+      return Response.json({ error: "enabled must be a boolean" }, { status: 400 });
+    }
+    updates.enabled = body.enabled;
+  }
+
+  if (body.debounceSeconds !== undefined) {
+    const val = body.debounceSeconds;
+    if (!Number.isInteger(val) || val < 0 || val > 86400) {
+      return Response.json(
+        { error: "debounceSeconds must be an integer between 0 and 86400" },
+        { status: 400 },
+      );
+    }
+    updates.debounceSeconds = val;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return Response.json({ error: "No valid fields to update" }, { status: 400 });
+  }
+
+  await updateWebhook(id, updates);
 
   return Response.json({ ok: true });
 };
@@ -73,14 +72,12 @@ export const DELETE = async (
   const userId = await requireAuth();
   const { id } = await params;
 
-  const [deleted] = await db
-    .delete(webhooks)
-    .where(and(eq(webhooks.id, id), eq(webhooks.userId, userId)))
-    .returning();
-
-  if (!deleted) {
+  const webhook = await getWebhook(id);
+  if (!webhook || webhook.userId !== userId) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
+
+  await deleteWebhook(id);
 
   return Response.json({ ok: true });
 };

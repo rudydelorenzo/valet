@@ -1,16 +1,13 @@
-import { db } from "@/lib/db";
-import { webhooks, webhookEvents, portainerInstances } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
-import { EVENT_STATUS_PENDING, EVENT_SOURCE_WEBHOOK, DEFAULT_DEBOUNCE_SECONDS, EVENT_STATUS_SUCCESS, EVENT_STATUS_ERROR } from "@/lib/constants";
-import { redeployStack } from "@/lib/portainer";
-
-// In-memory debounce timers — keyed by webhook id
-const timers = new Map<string, ReturnType<typeof setTimeout>>();
+import { getWebhookByToken } from "@/lib/db/webhooks";
+import { createEvent } from "@/lib/db/webhook-events";
+import { EVENT_SOURCE, EVENT_TYPE } from "@/lib/constants";
+import { ensureWorker } from "@/lib/worker";
 
 /**
  * POST — inbound webhook receiver.
  * Authenticated by the token in the URL path.
- * Supports debounce: rapid duplicate calls are coalesced.
+ * Queues a deploy and returns immediately with an event ID
+ * and a status URL the caller can poll.
  */
 export const POST = async (
   request: Request,
@@ -18,12 +15,7 @@ export const POST = async (
 ) => {
   const { token } = await params;
 
-  // Look up the webhook by token
-  const [webhook] = await db
-    .select()
-    .from(webhooks)
-    .where(eq(webhooks.token, token))
-    .limit(1);
+  const webhook = await getWebhookByToken(token);
 
   if (!webhook) {
     return Response.json({ error: "Not found" }, { status: 404 });
@@ -33,58 +25,17 @@ export const POST = async (
     return Response.json({ error: "Webhook is disabled" }, { status: 403 });
   }
 
-  // Log the incoming event
-  const [event] = await db
-    .insert(webhookEvents)
-    .values({
-      webhookId: webhook.id,
-      status: EVENT_STATUS_PENDING,
-      triggerSource: EVENT_SOURCE_WEBHOOK,
-    })
-    .returning();
+  const event = await createEvent(webhook.id, EVENT_TYPE.DEPLOY, EVENT_SOURCE.WEBHOOK);
 
-  // Debounce the redeploy
-  const existing = timers.get(webhook.id);
-  if (existing) clearTimeout(existing);
+  ensureWorker();
 
-  const delay = (webhook.debounceSeconds ?? DEFAULT_DEBOUNCE_SECONDS) * 1000;
-
-  timers.set(
-    webhook.id,
-    setTimeout(async () => {
-      timers.delete(webhook.id);
-
-      const [instance] = await db
-        .select()
-        .from(portainerInstances)
-        .where(eq(portainerInstances.id, webhook.portainerInstanceId))
-        .limit(1);
-
-      if (!instance) {
-        await db
-          .update(webhookEvents)
-          .set({ status: EVENT_STATUS_ERROR, message: "Portainer instance not found" })
-          .where(eq(webhookEvents.id, event.id));
-        return;
-      }
-
-      const result = await redeployStack(
-        instance.url,
-        instance.token,
-        instance.insecureTls,
-        webhook.stackId,
-        webhook.endpointId,
-      );
-
-      await db
-        .update(webhookEvents)
-        .set({
-          status: result.success ? EVENT_STATUS_SUCCESS : EVENT_STATUS_ERROR,
-          message: result.message,
-        })
-        .where(eq(webhookEvents.id, event.id));
-    }, delay),
+  const origin = new URL(request.url).origin;
+  return Response.json(
+    {
+      received: true,
+      eventId: event.id,
+      statusUrl: `${origin}/api/hooks/${token}/events/${event.id}`,
+    },
+    { status: 200 },
   );
-
-  return Response.json({ received: true, eventId: event.id }, { status: 202 });
 };

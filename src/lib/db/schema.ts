@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, unique } from "drizzle-orm/sqlite-core";
+import type { InferSelectModel } from "drizzle-orm";
 import { id } from "../ids";
 import { DEFAULT_DEBOUNCE_SECONDS, DEFAULT_OIDC_SCOPES } from "@/lib/constants";
 
@@ -107,6 +108,7 @@ export const webhookEvents = sqliteTable("webhook_events", {
   webhookId: text("webhook_id")
     .notNull()
     .references(() => webhooks.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
   status: text("status").notNull(),
   message: text("message"),
   triggerSource: text("trigger_source").notNull(),
@@ -114,3 +116,11 @@ export const webhookEvents = sqliteTable("webhook_events", {
     .notNull()
     .$defaultFn(() => new Date()),
 });
+
+// ── Inferred types ────────────────────────────────────────────────
+
+export type User = InferSelectModel<typeof users>;
+export type PortainerInstance = InferSelectModel<typeof portainerInstances>;
+export type Webhook = InferSelectModel<typeof webhooks>;
+export type WebhookEvent = InferSelectModel<typeof webhookEvents>;
+export type OidcProvider = InferSelectModel<typeof oidcProviders>;

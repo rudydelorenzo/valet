@@ -173,7 +173,7 @@ const AdminSettingsPage = () => {
         <div className="grid gap-4">
           {providers.map((p) => (
             <Card key={p.id}>
-              <CardContent className="flex items-center gap-4 pt-5">
+              <CardContent className="flex items-center gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="mb-0.5 flex items-center gap-2">
                     <span className="font-medium">{p.name}</span>
