@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { loginUrl } from "@/lib/urls";
 import { LogIn, Clock } from "lucide-react";
 
 interface Provider {
@@ -13,6 +14,15 @@ interface Provider {
 }
 
 const LAST_USED_KEY = "valet:lastProviderId";
+
+// localStorage-backed store for the last-used provider (cross-tab aware),
+// read via useSyncExternalStore so SSR/hydration stays consistent.
+const subscribeToLastUsed = (onStoreChange: () => void) => {
+  window.addEventListener("storage", onStoreChange);
+  return () => window.removeEventListener("storage", onStoreChange);
+};
+const getLastUsed = () => localStorage.getItem(LAST_USED_KEY);
+const getLastUsedServer = () => null;
 
 const LoginPage = () => {
   return (
@@ -36,11 +46,13 @@ const LoginContent = () => {
 
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastUsedId, setLastUsedId] = useState<string | null>(null);
+  const lastUsedId = useSyncExternalStore(
+    subscribeToLastUsed,
+    getLastUsed,
+    getLastUsedServer,
+  );
 
   useEffect(() => {
-    setLastUsedId(localStorage.getItem(LAST_USED_KEY));
-
     fetch("/api/auth/providers")
       .then((r) => r.json())
       .then((data: Provider[]) => {
@@ -52,7 +64,7 @@ const LoginContent = () => {
         // If no error and single provider, auto-redirect
         if (!errorMsg && data.length === 1) {
           localStorage.setItem(LAST_USED_KEY, data[0].id);
-          window.location.href = `/api/auth/login?provider=${data[0].id}`;
+          window.location.assign(loginUrl(data[0].id));
           return;
         }
 
@@ -72,7 +84,7 @@ const LoginContent = () => {
 
   const handleLogin = (providerId: string) => {
     localStorage.setItem(LAST_USED_KEY, providerId);
-    window.location.href = `/api/auth/login?provider=${providerId}`;
+    window.location.assign(loginUrl(providerId));
   };
 
   if (loading) {

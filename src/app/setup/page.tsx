@@ -91,8 +91,8 @@ const SetupPage = () => {
   // After provider step succeeds
   const handleProviderSaved = () => {
     setStep("done");
-    // Auto-redirect to login after a brief pause
-    setTimeout(() => router.push("/api/auth/login"), 2000);
+    // Auto-redirect to the login page after a brief pause
+    setTimeout(() => router.push("/login"), 2000);
   };
 
   if (loading) {

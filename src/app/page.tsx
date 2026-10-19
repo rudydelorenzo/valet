@@ -108,7 +108,7 @@ const Dashboard = () => {
 
       {/* Quick actions */}
       <div className="mb-8 flex gap-3">
-        <Button nativeButton={false} render={<Link href="/instances" />}>+ Add instance</Button>
+        <Button nativeButton={false} render={<Link href="/instances" />}>+ Connect to instance</Button>
         <Button variant="outline" nativeButton={false} render={<Link href="/webhooks" />}>
           + Create webhook
         </Button>
