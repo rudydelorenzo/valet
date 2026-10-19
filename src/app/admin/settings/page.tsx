@@ -9,12 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CopyableContent } from "@/components/CopyableContent";
+import {
+  OidcProviderForm,
+  type OidcProviderFormValues,
+} from "@/components/OidcProviderForm";
 import { toast } from "sonner";
-import { DEFAULT_OIDC_SCOPES } from "@/lib/constants";
 
 interface Provider {
   id: string;
@@ -32,16 +32,10 @@ const AdminSettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    issuer: "",
-    clientId: "",
-    clientSecret: "",
-    scopes: DEFAULT_OIDC_SCOPES,
-    skipEmailVerification: true,
-  });
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
+
+  const editingProvider = editingId
+    ? providers.find((p) => p.id === editingId)
+    : undefined;
 
   const load = () =>
     fetch("/api/admin/providers")
@@ -54,60 +48,33 @@ const AdminSettingsPage = () => {
   }, []);
 
   const resetForm = () => {
-    setForm({
-      name: "",
-      issuer: "",
-      clientId: "",
-      clientSecret: "",
-      scopes: DEFAULT_OIDC_SCOPES,
-      skipEmailVerification: true,
-    });
-    setError("");
     setEditingId(null);
     setShowForm(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setSaving(true);
-    try {
-      const url = editingId
-        ? `/api/admin/providers/${editingId}`
-        : "/api/admin/providers";
-      const method = editingId ? "PATCH" : "POST";
-      const body = editingId
-        ? { ...form, ...(form.clientSecret ? {} : { clientSecret: undefined }) }
-        : form;
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save provider");
-      toast.success(editingId ? "Provider updated" : "Provider added");
-      resetForm();
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSaving(false);
-    }
+  const handleSubmit = async (values: OidcProviderFormValues) => {
+    const url = editingId
+      ? `/api/admin/providers/${editingId}`
+      : "/api/admin/providers";
+    const method = editingId ? "PATCH" : "POST";
+    const body = editingId
+      ? { ...values, ...(values.clientSecret ? {} : { clientSecret: undefined }) }
+      : values;
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to save provider");
+    toast.success(editingId ? "Provider updated" : "Provider added");
+    resetForm();
+    load();
   };
 
   const handleEdit = (p: Provider) => {
-    setForm({
-      name: p.name,
-      issuer: p.issuer,
-      clientId: p.clientId,
-      clientSecret: "",
-      scopes: p.scopes,
-      skipEmailVerification: p.skipEmailVerification,
-    });
     setEditingId(p.id);
     setShowForm(true);
-    setError("");
   };
 
   const handleToggle = async (p: Provider) => {
@@ -171,100 +138,25 @@ const AdminSettingsPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <CopyableContent
-              label="Redirect / callback URL"
-              value={`${typeof window !== "undefined" ? window.location.origin : ""}/api/auth/callback`}
+            <OidcProviderForm
+              key={editingId ?? "new"}
+              editing={!!editingId}
+              initialValues={
+                editingProvider
+                  ? {
+                      name: editingProvider.name,
+                      issuer: editingProvider.issuer,
+                      clientId: editingProvider.clientId,
+                      scopes: editingProvider.scopes,
+                      skipEmailVerification:
+                        editingProvider.skipEmailVerification,
+                    }
+                  : undefined
+              }
+              submitLabel={editingId ? "Save changes" : "Add provider"}
+              onCancel={resetForm}
+              onSubmit={handleSubmit}
             />
-            <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="provName">Display name</Label>
-                <Input
-                  id="provName"
-                  placeholder="Authentik"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="provIssuer">Issuer URL</Label>
-                <Input
-                  id="provIssuer"
-                  placeholder="https://auth.example.com/application/o/valet/"
-                  value={form.issuer}
-                  onChange={(e) =>
-                    setForm({ ...form, issuer: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="provClientId">Client ID</Label>
-                <Input
-                  id="provClientId"
-                  value={form.clientId}
-                  onChange={(e) =>
-                    setForm({ ...form, clientId: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="provSecret">
-                  Client secret{editingId ? " (blank = keep)" : ""}
-                </Label>
-                <Input
-                  id="provSecret"
-                  type="password"
-                  value={form.clientSecret}
-                  onChange={(e) =>
-                    setForm({ ...form, clientSecret: e.target.value })
-                  }
-                  {...(editingId ? {} : { required: true })}
-                />
-              </div>
-              <div className="col-span-full space-y-1.5">
-                <Label htmlFor="provScopes">Scopes</Label>
-                <Input
-                  id="provScopes"
-                  value={form.scopes}
-                  onChange={(e) =>
-                    setForm({ ...form, scopes: e.target.value })
-                  }
-                />
-              </div>
-              <div className="col-span-full flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="skipEmailVerification"
-                  checked={form.skipEmailVerification}
-                  onChange={(e) =>
-                    setForm({ ...form, skipEmailVerification: e.target.checked })
-                  }
-                  className="size-4"
-                />
-                <Label htmlFor="skipEmailVerification" className="font-normal">
-                  Skip email verification check
-                </Label>
-              </div>
-              {error && (
-                <p className="col-span-full rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  {error}
-                </p>
-              )}
-              <div className="col-span-full flex gap-2">
-                <Button type="submit" disabled={saving}>
-                  {saving
-                    ? "Saving…"
-                    : editingId
-                      ? "Save changes"
-                      : "Add provider"}
-                </Button>
-                <Button type="button" variant="ghost" onClick={resetForm}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
           </CardContent>
         </Card>
       )}

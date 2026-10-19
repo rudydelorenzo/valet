@@ -55,7 +55,7 @@ export const oidcProviders = sqliteTable("oidc_providers", {
   clientId: text("client_id").notNull(),
   clientSecret: text("client_secret").notNull(),
   scopes: text("scopes").notNull().default(DEFAULT_OIDC_SCOPES),
-  skipEmailVerification: integer("skip_email_verification", { mode: "boolean" }).notNull().default(true),
+  skipEmailVerification: integer("skip_email_verification", { mode: "boolean" }).notNull().default(false),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()

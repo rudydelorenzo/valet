@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { discover } from "@/lib/auth/oidc";
 import { getSecret } from "@/lib/auth/secret";
 import { SETUP_COOKIE, JWT_ISSUER, DEFAULT_OIDC_SCOPES } from "@/lib/constants";
+import { normalizeScopes } from "@/lib/oidc-scopes";
 
 /**
  * POST — add the first OIDC provider during initial setup.
@@ -79,7 +80,7 @@ export const POST = async (request: Request) => {
       issuer,
       clientId,
       clientSecret,
-      scopes: scopes || DEFAULT_OIDC_SCOPES,
+      scopes: normalizeScopes(scopes || DEFAULT_OIDC_SCOPES),
       skipEmailVerification: skipEmailVerification ?? false,
     })
     .returning();

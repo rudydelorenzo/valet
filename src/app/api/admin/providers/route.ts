@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { oidcProviders } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { DEFAULT_OIDC_SCOPES } from "@/lib/constants";
+import { normalizeScopes } from "@/lib/oidc-scopes";
 import { discover } from "@/lib/auth/oidc";
 
 export const GET = async () => {
@@ -57,7 +58,7 @@ export const POST = async (request: Request) => {
       issuer,
       clientId,
       clientSecret,
-      scopes: scopes || DEFAULT_OIDC_SCOPES,
+      scopes: normalizeScopes(scopes || DEFAULT_OIDC_SCOPES),
       skipEmailVerification: skipEmailVerification ?? false,
     })
     .returning();

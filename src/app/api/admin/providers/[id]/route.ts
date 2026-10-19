@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { oidcProviders } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { discover } from "@/lib/auth/oidc";
+import { normalizeScopes } from "@/lib/oidc-scopes";
 
 export const GET = async (
   _request: Request,
@@ -35,7 +36,7 @@ export const PATCH = async (
   if (body.issuer !== undefined) updates.issuer = body.issuer;
   if (body.clientId !== undefined) updates.clientId = body.clientId;
   if (body.clientSecret !== undefined) updates.clientSecret = body.clientSecret;
-  if (body.scopes !== undefined) updates.scopes = body.scopes;
+  if (body.scopes !== undefined) updates.scopes = normalizeScopes(body.scopes);
   if (body.skipEmailVerification !== undefined) updates.skipEmailVerification = body.skipEmailVerification;
   if (body.enabled !== undefined) updates.enabled = body.enabled;
 

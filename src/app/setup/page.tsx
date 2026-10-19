@@ -10,12 +10,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { SetupCodeInput } from "@/components/SetupCodeInput";
-import { CopyableContent } from "@/components/CopyableContent";
+import {
+  OidcProviderForm,
+  type OidcProviderFormValues,
+} from "@/components/OidcProviderForm";
 import { Terminal, KeyRound, CheckCircle2 } from "lucide-react";
-import { CALLBACK_PATH, DEFAULT_OIDC_SCOPES, SETUP_CODE_LENGTH } from "@/lib/constants";
+import { SETUP_CODE_LENGTH } from "@/lib/constants";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -125,11 +126,7 @@ const SetupPage = () => {
         )}
 
         {step === "provider" && (
-          <ProviderStep
-            error={error}
-            setError={setError}
-            onSaved={handleProviderSaved}
-          />
+          <ProviderStep onSaved={handleProviderSaved} />
         )}
 
         {step === "done" && <DoneStep />}
@@ -233,50 +230,22 @@ const VerifyStep = ({
 
 // ── Step 2: Provider ───────────────────────────────────────────────
 
-const ProviderStep = ({
-  error,
-  setError,
-  onSaved,
-}: {
-  error: string;
-  setError: (v: string) => void;
-  onSaved: () => void;
-}) => {
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    issuer: "",
-    clientId: "",
-    clientSecret: "",
-    scopes: DEFAULT_OIDC_SCOPES,
-    skipEmailVerification: true,
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setSaving(true);
+const ProviderStep = ({ onSaved }: { onSaved: () => void }) => {
+  const handleSubmit = async (values: OidcProviderFormValues) => {
+    let res: Response;
     try {
-      const res = await fetch("/api/setup/provider", {
+      res = await fetch("/api/setup/provider", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(values),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Failed to save provider");
-        return;
-      }
-      onSaved();
     } catch {
-      setError("Something went wrong");
-    } finally {
-      setSaving(false);
+      throw new Error("Something went wrong");
     }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to save provider");
+    onSaved();
   };
-
-  const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm({ ...form, [field]: e.target.value });
 
   return (
     <Card className="shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150 fill-mode-both">
@@ -290,84 +259,11 @@ const ProviderStep = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <CopyableContent
-          label="Redirect / callback URL"
-          value={`${typeof window !== "undefined" ? window.location.origin : ""}${CALLBACK_PATH}`}
+        <OidcProviderForm
+          submitLabel="Save & continue"
+          fullWidthSubmit
+          onSubmit={handleSubmit}
         />
-
-        <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="provName">Display name</Label>
-            <Input
-              id="provName"
-              placeholder="Authentik"
-              value={form.name}
-              onChange={set("name")}
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="provIssuer">Issuer URL</Label>
-            <Input
-              id="provIssuer"
-              placeholder="https://auth.example.com/application/o/valet/"
-              value={form.issuer}
-              onChange={set("issuer")}
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="provClientId">Client ID</Label>
-            <Input
-              id="provClientId"
-              value={form.clientId}
-              onChange={set("clientId")}
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="provSecret">Client secret</Label>
-            <Input
-              id="provSecret"
-              type="password"
-              value={form.clientSecret}
-              onChange={set("clientSecret")}
-              required
-            />
-          </div>
-          <div className="col-span-full space-y-1.5">
-            <Label htmlFor="provScopes">Scopes</Label>
-            <Input
-              id="provScopes"
-              value={form.scopes}
-              onChange={set("scopes")}
-            />
-          </div>
-          <div className="col-span-full flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="skipEmailVerification"
-              checked={form.skipEmailVerification}
-              onChange={(e) => setForm({ ...form, skipEmailVerification: e.target.checked })}
-              className="size-4"
-            />
-            <Label htmlFor="skipEmailVerification" className="font-normal">
-              Skip email verification check
-            </Label>
-          </div>
-
-          {error && (
-            <p className="col-span-full rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
-            </p>
-          )}
-
-          <div className="col-span-full">
-            <Button type="submit" className="w-full" size="lg" disabled={saving}>
-              {saving ? "Saving…" : "Save & continue"}
-            </Button>
-          </div>
-        </form>
       </CardContent>
     </Card>
   );
