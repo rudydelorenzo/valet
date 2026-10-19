@@ -8,8 +8,13 @@ import {
   getPKCEData,
   clearPKCECookie,
 } from "@/lib/auth/oidc";
-import { createSessionJwt, setSessionCookie } from "@/lib/auth/session";
-import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS, CALLBACK_PATH } from "@/lib/constants";
+import { createSessionJwt } from "@/lib/auth/session";
+import { findOrCreateUser } from "@/lib/auth/user";
+import {
+  SESSION_COOKIE,
+  SESSION_MAX_AGE_SECONDS,
+  CALLBACK_PATH,
+} from "@/lib/constants";
 
 export const GET = async (request: NextRequest) => {
   const url = request.nextUrl;
@@ -19,12 +24,12 @@ export const GET = async (request: NextRequest) => {
 
   if (error) {
     return NextResponse.redirect(
-      new URL(`/?error=${encodeURIComponent(url.searchParams.get("error_description") || error)}`, request.url),
+      new URL(`/login?error=${encodeURIComponent(url.searchParams.get("error_description") || error)}`, request.url),
     );
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(new URL("/?error=Missing+code+or+state", request.url));
+    return NextResponse.redirect(new URL("/login?error=Missing+code+or+state", request.url));
   }
 
   // Retrieve PKCE data from cookie
@@ -32,7 +37,7 @@ export const GET = async (request: NextRequest) => {
   await clearPKCECookie();
 
   if (!pkce || pkce.state !== state) {
-    return NextResponse.redirect(new URL("/?error=Invalid+or+expired+session", request.url));
+    return NextResponse.redirect(new URL("/login?error=Invalid+or+expired+session", request.url));
   }
 
   // Load the provider
@@ -43,7 +48,7 @@ export const GET = async (request: NextRequest) => {
     .limit(1);
 
   if (!provider) {
-    return NextResponse.redirect(new URL("/?error=Provider+not+found", request.url));
+    return NextResponse.redirect(new URL("/login?error=Provider+not+found", request.url));
   }
 
   try {
@@ -60,16 +65,40 @@ export const GET = async (request: NextRequest) => {
       codeVerifier: pkce.codeVerifier,
     });
 
-    // Create session
-    const jwt = await createSessionJwt({
-      sub: userinfo.sub,
-      email: userinfo.email ?? "",
-      name: userinfo.name ?? userinfo.preferred_username ?? userinfo.email ?? "User",
+    // Email is required
+    if (!userinfo.email) {
+      return NextResponse.redirect(
+        new URL(`/login?error=${encodeURIComponent("Email not provided by identity provider")}&provider=${provider.id}`, request.url),
+      );
+    }
+
+    // Check email_verified unless the provider skips it
+    if (
+      !provider.skipEmailVerification &&
+      userinfo.email_verified !== true
+    ) {
+      return NextResponse.redirect(
+        new URL(`/login?error=${encodeURIComponent("Email not verified with your identity provider")}&provider=${provider.id}`, request.url),
+      );
+    }
+
+    // Find or create user
+    const { user } = await findOrCreateUser({
+      email: userinfo.email,
+      name: userinfo.name ?? userinfo.preferred_username ?? userinfo.email,
+      oidcSub: userinfo.sub,
       providerId: provider.id,
     });
 
+    // Create session
+    const jwt = await createSessionJwt({
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      isAdmin: user.isAdmin,
+    });
+
     const response = NextResponse.redirect(new URL("/", request.url));
-    // Set session cookie on the redirect response
     response.cookies.set(SESSION_COOKIE, jwt, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -82,6 +111,6 @@ export const GET = async (request: NextRequest) => {
     const msg = encodeURIComponent(
       err instanceof Error ? err.message : "Authentication failed",
     );
-    return NextResponse.redirect(new URL(`/?error=${msg}`, request.url));
+    return NextResponse.redirect(new URL(`/login?error=${msg}&provider=${provider.id}`, request.url));
   }
 };

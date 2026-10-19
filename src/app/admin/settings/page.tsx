@@ -22,6 +22,7 @@ interface Provider {
   issuer: string;
   clientId: string;
   scopes: string;
+  skipEmailVerification: boolean;
   enabled: boolean;
   createdAt: string;
 }
@@ -37,6 +38,7 @@ const AdminSettingsPage = () => {
     clientId: "",
     clientSecret: "",
     scopes: DEFAULT_OIDC_SCOPES,
+    skipEmailVerification: true,
   });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -58,6 +60,7 @@ const AdminSettingsPage = () => {
       clientId: "",
       clientSecret: "",
       scopes: DEFAULT_OIDC_SCOPES,
+      skipEmailVerification: true,
     });
     setError("");
     setEditingId(null);
@@ -100,6 +103,7 @@ const AdminSettingsPage = () => {
       clientId: p.clientId,
       clientSecret: "",
       scopes: p.scopes,
+      skipEmailVerification: p.skipEmailVerification,
     });
     setEditingId(p.id);
     setShowForm(true);
@@ -229,6 +233,20 @@ const AdminSettingsPage = () => {
                   }
                 />
               </div>
+              <div className="col-span-full flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="skipEmailVerification"
+                  checked={form.skipEmailVerification}
+                  onChange={(e) =>
+                    setForm({ ...form, skipEmailVerification: e.target.checked })
+                  }
+                  className="size-4"
+                />
+                <Label htmlFor="skipEmailVerification" className="font-normal">
+                  Skip email verification check
+                </Label>
+              </div>
               {error && (
                 <p className="col-span-full rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   {error}
@@ -276,6 +294,7 @@ const AdminSettingsPage = () => {
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Client ID: {p.clientId} · Scopes: {p.scopes}
+                    {p.skipEmailVerification && " · Email verification skipped"}
                   </div>
                 </div>
                 <div className="flex gap-2">

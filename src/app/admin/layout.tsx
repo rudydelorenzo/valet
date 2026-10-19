@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 
 const ADMIN_LINKS = [
   { href: "/admin/settings", label: "Identity providers" },
+  { href: "/admin/users", label: "Users" },
 ];
 
 const AdminLayout = ({

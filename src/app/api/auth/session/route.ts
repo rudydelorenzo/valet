@@ -8,9 +8,10 @@ export const GET = async () => {
   return Response.json({
     authenticated: true,
     user: {
-      sub: session.sub,
+      id: session.sub,
       email: session.email,
       name: session.name,
+      isAdmin: session.isAdmin,
     },
   });
 };

@@ -9,10 +9,10 @@ import {
 import { getSecret } from "@/lib/auth/secret";
 
 export interface SessionPayload extends JWTPayload {
-  sub: string; // provider user id
+  sub: string; // userId
   email: string;
   name: string;
-  providerId: string;
+  isAdmin: boolean;
 }
 
 export const createSessionJwt = async (

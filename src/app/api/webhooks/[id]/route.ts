@@ -1,12 +1,15 @@
 import { db } from "@/lib/db";
 import { webhooks, portainerInstances } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { requireAuth } from "@/lib/auth/guard";
 
 export const GET = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+  const userId = await requireAuth();
   const { id } = await params;
+
   const [webhook] = await db
     .select({
       id: webhooks.id,
@@ -26,7 +29,7 @@ export const GET = async (
       portainerInstances,
       eq(webhooks.portainerInstanceId, portainerInstances.id),
     )
-    .where(eq(webhooks.id, id))
+    .where(and(eq(webhooks.id, id), eq(webhooks.userId, userId)))
     .limit(1);
 
   if (!webhook) {
@@ -40,7 +43,9 @@ export const PATCH = async (
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+  const userId = await requireAuth();
   const { id } = await params;
+
   const body = await request.json();
   const updates: Record<string, unknown> = {};
 
@@ -51,7 +56,7 @@ export const PATCH = async (
   const [updated] = await db
     .update(webhooks)
     .set(updates)
-    .where(eq(webhooks.id, id))
+    .where(and(eq(webhooks.id, id), eq(webhooks.userId, userId)))
     .returning();
 
   if (!updated) {
@@ -65,10 +70,12 @@ export const DELETE = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+  const userId = await requireAuth();
   const { id } = await params;
+
   const [deleted] = await db
     .delete(webhooks)
-    .where(eq(webhooks.id, id))
+    .where(and(eq(webhooks.id, id), eq(webhooks.userId, userId)))
     .returning();
 
   if (!deleted) {

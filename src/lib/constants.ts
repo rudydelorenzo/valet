@@ -22,6 +22,9 @@ export const DEFAULT_OIDC_SCOPES = "openid email profile";
 export const DEFAULT_DB_PATH = "./data/valet.db";
 export const CALLBACK_PATH = "/api/auth/callback";
 
+// ── Required OIDC scopes ───────────────────────────────────────────
+export const REQUIRED_OIDC_SCOPES = ["openid", "email"];
+
 // ── Webhook event status / source ──────────────────────────────────
 export const EVENT_STATUS_PENDING = "pending";
 export const EVENT_STATUS_SUCCESS = "success";

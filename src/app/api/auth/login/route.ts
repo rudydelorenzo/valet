@@ -12,15 +12,37 @@ import {
 import { CALLBACK_PATH } from "@/lib/constants";
 
 export const GET = async (request: NextRequest) => {
-  // Find the first enabled provider
+  const providerId = request.nextUrl.searchParams.get("provider");
+
+  // If no provider specified, check how many exist
+  if (!providerId) {
+    const providers = await db
+      .select({ id: oidcProviders.id })
+      .from(oidcProviders)
+      .where(eq(oidcProviders.enabled, true));
+
+    if (providers.length === 0) {
+      return NextResponse.redirect(new URL("/setup", request.url));
+    }
+    if (providers.length === 1) {
+      // Auto-redirect to the single provider
+      return NextResponse.redirect(
+        new URL(`/api/auth/login?provider=${providers[0].id}`, request.url),
+      );
+    }
+    // Multiple — show selection page
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // Load the specified provider
   const [provider] = await db
     .select()
     .from(oidcProviders)
-    .where(eq(oidcProviders.enabled, true))
+    .where(eq(oidcProviders.id, providerId))
     .limit(1);
 
-  if (!provider) {
-    return NextResponse.redirect(new URL("/setup", request.url));
+  if (!provider || !provider.enabled) {
+    return NextResponse.redirect(new URL("/login?error=Provider+not+found", request.url));
   }
 
   try {
@@ -28,7 +50,7 @@ export const GET = async (request: NextRequest) => {
 
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
-    const state = generateCodeVerifier(); // reuse as random state
+    const state = generateCodeVerifier();
 
     const baseUrl = process.env.APP_BASE_URL || request.nextUrl.origin;
     const redirectUri = `${baseUrl}${CALLBACK_PATH}`;
@@ -42,7 +64,6 @@ export const GET = async (request: NextRequest) => {
       codeChallenge,
     });
 
-    // Store PKCE data in a short-lived cookie
     await setPKCECookie({
       codeVerifier,
       state,
@@ -54,8 +75,6 @@ export const GET = async (request: NextRequest) => {
     const msg = encodeURIComponent(
       err instanceof Error ? err.message : "OIDC discovery failed",
     );
-    return NextResponse.redirect(
-      new URL(`/admin/settings?error=${msg}`, request.url),
-    );
+    return NextResponse.redirect(new URL(`/login?error=${msg}`, request.url));
   }
 };

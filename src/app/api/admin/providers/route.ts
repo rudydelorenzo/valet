@@ -12,6 +12,7 @@ export const GET = async () => {
       issuer: oidcProviders.issuer,
       clientId: oidcProviders.clientId,
       scopes: oidcProviders.scopes,
+      skipEmailVerification: oidcProviders.skipEmailVerification,
       enabled: oidcProviders.enabled,
       createdAt: oidcProviders.createdAt,
     })
@@ -23,12 +24,13 @@ export const GET = async () => {
 
 export const POST = async (request: Request) => {
   const body = await request.json();
-  const { name, issuer, clientId, clientSecret, scopes } = body as {
+  const { name, issuer, clientId, clientSecret, scopes, skipEmailVerification } = body as {
     name?: string;
     issuer?: string;
     clientId?: string;
     clientSecret?: string;
     scopes?: string;
+    skipEmailVerification?: boolean;
   };
 
   if (!name || !issuer || !clientId || !clientSecret) {
@@ -56,6 +58,7 @@ export const POST = async (request: Request) => {
       clientId,
       clientSecret,
       scopes: scopes || DEFAULT_OIDC_SCOPES,
+      skipEmailVerification: skipEmailVerification ?? false,
     })
     .returning();
 

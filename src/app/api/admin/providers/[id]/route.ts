@@ -36,6 +36,7 @@ export const PATCH = async (
   if (body.clientId !== undefined) updates.clientId = body.clientId;
   if (body.clientSecret !== undefined) updates.clientSecret = body.clientSecret;
   if (body.scopes !== undefined) updates.scopes = body.scopes;
+  if (body.skipEmailVerification !== undefined) updates.skipEmailVerification = body.skipEmailVerification;
   if (body.enabled !== undefined) updates.enabled = body.enabled;
 
   // Validate issuer if changed

@@ -7,15 +7,8 @@ import { Button } from "@/components/ui/button";
 
 interface Session {
   authenticated: boolean;
-  user?: { name: string; email: string };
+  user?: { id: string; email: string; name: string; isAdmin: boolean };
 }
-
-const LINKS = [
-  { href: "/", label: "Dashboard" },
-  { href: "/instances", label: "Instances" },
-  { href: "/webhooks", label: "Webhooks" },
-  { href: "/admin/settings", label: "Admin" },
-];
 
 const Nav = () => {
   const pathname = usePathname();
@@ -28,6 +21,15 @@ const Nav = () => {
       .catch(() => setSession({ authenticated: false }));
   }, []);
 
+  const links = [
+    { href: "/", label: "Dashboard" },
+    { href: "/instances", label: "Instances" },
+    { href: "/webhooks", label: "Webhooks" },
+    ...(session?.user?.isAdmin
+      ? [{ href: "/admin/settings", label: "Admin" }]
+      : []),
+  ];
+
   return (
     <nav className="border-b border-border bg-background">
       <div className="mx-auto flex h-12 max-w-6xl items-center gap-5 px-4">
@@ -36,7 +38,7 @@ const Nav = () => {
         </Link>
 
         <div className="flex items-center gap-0.5">
-          {LINKS.map(({ href, label }) => {
+          {links.map(({ href, label }) => {
             const active =
               pathname === href ||
               (href !== "/" && pathname.startsWith(href));

@@ -249,6 +249,7 @@ const ProviderStep = ({
     clientId: "",
     clientSecret: "",
     scopes: DEFAULT_OIDC_SCOPES,
+    skipEmailVerification: true,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -341,6 +342,18 @@ const ProviderStep = ({
               value={form.scopes}
               onChange={set("scopes")}
             />
+          </div>
+          <div className="col-span-full flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="skipEmailVerification"
+              checked={form.skipEmailVerification}
+              onChange={(e) => setForm({ ...form, skipEmailVerification: e.target.checked })}
+              className="size-4"
+            />
+            <Label htmlFor="skipEmailVerification" className="font-normal">
+              Skip email verification check
+            </Label>
           </div>
 
           {error && (

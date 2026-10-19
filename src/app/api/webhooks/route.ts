@@ -1,10 +1,13 @@
 import { db } from "@/lib/db";
 import { webhooks, portainerInstances } from "@/lib/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 import { DEFAULT_DEBOUNCE_SECONDS } from "@/lib/constants";
+import { requireAuth } from "@/lib/auth/guard";
 import crypto from "node:crypto";
 
 export const GET = async () => {
+  const userId = await requireAuth();
+
   const rows = await db
     .select({
       id: webhooks.id,
@@ -24,12 +27,15 @@ export const GET = async () => {
       portainerInstances,
       eq(webhooks.portainerInstanceId, portainerInstances.id),
     )
+    .where(eq(webhooks.userId, userId))
     .orderBy(desc(webhooks.createdAt));
 
   return Response.json(rows);
 };
 
 export const POST = async (request: Request) => {
+  const userId = await requireAuth();
+
   const body = await request.json();
   const {
     name,
@@ -57,12 +63,30 @@ export const POST = async (request: Request) => {
     );
   }
 
+  // Verify the instance belongs to this user
+  const [instance] = await db
+    .select({ id: portainerInstances.id })
+    .from(portainerInstances)
+    .where(and(
+      eq(portainerInstances.id, portainerInstanceId),
+      eq(portainerInstances.userId, userId),
+    ))
+    .limit(1);
+
+  if (!instance) {
+    return Response.json(
+      { error: "Instance not found" },
+      { status: 404 },
+    );
+  }
+
   // Generate a random token for the webhook URL
   const token = crypto.randomBytes(32).toString("base64url");
 
   const [webhook] = await db
     .insert(webhooks)
     .values({
+      userId,
       name,
       token,
       portainerInstanceId,

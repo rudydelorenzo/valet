@@ -49,9 +49,10 @@ export const POST = async (request: Request) => {
     clientId?: string;
     clientSecret?: string;
     scopes?: string;
+    skipEmailVerification?: boolean;
   };
 
-  const { name, issuer, clientId, clientSecret, scopes } = body;
+  const { name, issuer, clientId, clientSecret, scopes, skipEmailVerification } = body;
 
   if (!name || !issuer || !clientId || !clientSecret) {
     return Response.json(
@@ -79,6 +80,7 @@ export const POST = async (request: Request) => {
       clientId,
       clientSecret,
       scopes: scopes || DEFAULT_OIDC_SCOPES,
+      skipEmailVerification: skipEmailVerification ?? false,
     })
     .returning();
 

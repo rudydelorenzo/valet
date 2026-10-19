@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
 import { webhooks, webhookEvents, portainerInstances } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { EVENT_STATUS_PENDING, EVENT_SOURCE_MANUAL, EVENT_STATUS_SUCCESS, EVENT_STATUS_ERROR } from "@/lib/constants";
+import { requireAuth } from "@/lib/auth/guard";
 import { redeployStack } from "@/lib/portainer";
 
 /**
@@ -11,12 +12,13 @@ export const POST = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+  const userId = await requireAuth();
   const { id: webhookId } = await params;
 
   const [webhook] = await db
     .select()
     .from(webhooks)
-    .where(eq(webhooks.id, webhookId))
+    .where(and(eq(webhooks.id, webhookId), eq(webhooks.userId, userId)))
     .limit(1);
 
   if (!webhook) {
