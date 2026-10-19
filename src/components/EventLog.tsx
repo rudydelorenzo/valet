@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
+import { LiveToggle } from "@/components/LiveToggle";
 import {
   Table,
   TableBody,
@@ -59,16 +60,7 @@ const EventLog = ({ fetchUrl, limit = 100, live: initialLive = false }: EventLog
         <div className="text-xs text-muted-foreground">
           {events.length} event{events.length !== 1 ? "s" : ""}
         </div>
-        <button
-          type="button"
-          onClick={() => setLive(!live)}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors hover:bg-muted"
-        >
-          <span
-            className={`inline-block size-1.5 rounded-full ${live ? "bg-green-500" : "bg-muted-foreground/40"}`}
-          />
-          {live ? "Live" : "Paused"}
-        </button>
+        <LiveToggle live={live} onToggle={() => setLive(!live)} />
       </div>
 
       {events.length === 0 ? (
