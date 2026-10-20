@@ -2,7 +2,7 @@ import { getWebhook } from "@/lib/db/webhooks";
 import { createEvent, setEventStatus } from "@/lib/db/webhook-events";
 import { EVENT_SOURCE, EVENT_TYPE } from "@/lib/constants";
 import { requireAuth } from "@/lib/auth/guard";
-import { consumeWebhookJob } from "@/lib/worker/jobs/deploy";
+import { consumeDeployEvent } from "@/lib/worker/jobs/deploy";
 import { ensureWorker } from "@/lib/worker";
 
 /**
@@ -23,7 +23,7 @@ export const POST = async (
 
   const event = await createEvent(webhook.id, EVENT_TYPE.DEPLOY, EVENT_SOURCE.MANUAL);
 
-  const result = await consumeWebhookJob(event);
+  const result = await consumeDeployEvent(event);
 
   await setEventStatus(
     event.id,

@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { Copy } from "lucide-react";
 
 interface CopyableContentProps {
-  label: string;
+  label?: string;
   value: string;
 }
 
@@ -29,9 +29,11 @@ export const CopyableContent = ({ label, value }: CopyableContentProps) => {
       className="group mb-4 flex w-full cursor-pointer items-center gap-3 rounded-lg border border-dashed bg-muted/50 px-4 py-3 text-left transition-colors hover:bg-muted/80"
     >
       <div className="min-w-0 flex-1">
-        <p className="mb-1 text-xs font-medium text-muted-foreground">
-          {label}
-        </p>
+        {label && (
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
+            {label}
+          </p>
+        )}
         <div className="relative">
           <code
             className={`text-sm break-all transition-opacity duration-300 ${

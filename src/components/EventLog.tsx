@@ -3,14 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { LiveToggle } from "@/components/LiveToggle";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Event {
   id: string;
@@ -18,6 +12,8 @@ interface Event {
   message: string | null;
   triggerSource: string;
   createdAt: string;
+  webhookName?: string;
+  instanceName?: string;
 }
 
 interface EventLogProps {
@@ -32,6 +28,7 @@ interface EventLogProps {
 const EventLog = ({ fetchUrl, limit = 100, live: initialLive = false }: EventLogProps) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [live, setLive] = useState(initialLive);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     fetch(fetchUrl)
@@ -54,6 +51,8 @@ const EventLog = ({ fetchUrl, limit = 100, live: initialLive = false }: EventLog
     return () => clearInterval(interval);
   }, [live, events, refresh]);
 
+  const toggle = (id: string) => setExpanded((prev) => (prev === id ? null : id));
+
   return (
     <>
       <div className="mb-3 flex items-center justify-between">
@@ -66,34 +65,73 @@ const EventLog = ({ fetchUrl, limit = 100, live: initialLive = false }: EventLog
       {events.length === 0 ? (
         <p className="text-sm text-muted-foreground">No events yet.</p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Message</TableHead>
-              <TableHead>Time</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {events.map((evt) => (
-              <TableRow key={evt.id}>
-                <TableCell className="font-mono text-xs">{evt.id}</TableCell>
-                <TableCell>{evt.triggerSource}</TableCell>
-                <TableCell>
+        <div className="divide-y divide-border rounded-lg border">
+          {events.map((evt) => {
+            const isOpen = expanded === evt.id;
+
+            return (
+              <div key={evt.id}>
+                {/* Collapsed row */}
+                <button
+                  type="button"
+                  onClick={() => toggle(evt.id)}
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50 cursor-pointer"
+                >
+                  <ChevronRight
+                    className={cn(
+                      "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                      isOpen && "rotate-90",
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-medium">
+                      {evt.webhookName ?? "—"}
+                    </span>
+                    {evt.instanceName && (
+                      <span className="ml-1.5 text-xs text-muted-foreground">
+                        on {evt.instanceName}
+                      </span>
+                    )}
+                  </div>
                   <StatusBadge status={evt.status} />
-                </TableCell>
-                <TableCell className="max-w-xs truncate text-muted-foreground">
-                  {evt.message ?? "—"}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {new Date(evt.createdAt).toLocaleString()}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {new Date(evt.createdAt).toLocaleString()}
+                  </span>
+                </button>
+
+                {/* Expanded details */}
+                <div
+                  className={cn(
+                    "grid transition-[grid-template-rows] duration-200 ease-out",
+                    isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                  )}
+                >
+                  <div className="overflow-hidden">
+                    <div className="border-t bg-muted/30 px-3 py-3">
+                      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                        <dt className="text-muted-foreground">ID</dt>
+                        <dd className="font-mono text-xs">{evt.id}</dd>
+
+                        <dt className="text-muted-foreground">Source</dt>
+                        <dd>{evt.triggerSource}</dd>
+
+                        {evt.message && (
+                          <>
+                            <dt className="text-muted-foreground">Message</dt>
+                            <dd className="break-all">{evt.message}</dd>
+                          </>
+                        )}
+
+                        <dt className="text-muted-foreground">Time</dt>
+                        <dd>{new Date(evt.createdAt).toLocaleString()}</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </>
   );

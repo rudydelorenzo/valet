@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { webhooks, webhookEvents } from "@/lib/db/schema";
+import { webhooks, webhookEvents, portainerInstances } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth/guard";
 
@@ -16,9 +16,12 @@ export const GET = async () => {
       message: webhookEvents.message,
       triggerSource: webhookEvents.triggerSource,
       createdAt: webhookEvents.createdAt,
+      webhookName: webhooks.name,
+      instanceName: portainerInstances.name,
     })
     .from(webhookEvents)
     .innerJoin(webhooks, eq(webhookEvents.webhookId, webhooks.id))
+    .innerJoin(portainerInstances, eq(webhooks.portainerInstanceId, portainerInstances.id))
     .where(eq(webhooks.userId, userId))
     .orderBy(desc(webhookEvents.createdAt))
     .limit(20);

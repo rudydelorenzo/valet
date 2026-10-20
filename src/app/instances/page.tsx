@@ -3,10 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { InstanceIcon } from "@/components/instance-icon";
 
 interface Instance {
   id: string;
@@ -168,11 +175,22 @@ const InstancesPage = () => {
               className="group block"
             >
               <Card className="transition-shadow hover:shadow-md">
-                <CardContent className="pt-5">
-                  <div className="mb-1 font-medium">{inst.name}</div>
-                  <div className="mb-3 text-xs text-muted-foreground">
-                    {inst.url}
+                <CardHeader>
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
+                      <InstanceIcon id={inst.id} />
+                    </div>
+                    <div className="min-w-0">
+                      <CardTitle className="truncate text-sm">
+                        {inst.name}
+                      </CardTitle>
+                      <CardDescription className="truncate">
+                        {inst.url}
+                      </CardDescription>
+                    </div>
                   </div>
+                </CardHeader>
+                <CardContent>
                   <div className="flex items-center gap-2">
                     {inst.insecureTls && (
                       <Badge variant="secondary">TLS skip</Badge>
