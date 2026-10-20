@@ -13,8 +13,8 @@ const SuccessStep = ({
 }) => {
   const webhookUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/api/hooks/${token}`
-      : `/api/hooks/${token}`;
+      ? `${window.location.origin}/api/deploy/${token}`
+      : `/api/deploy/${token}`;
 
   const curlExample = `curl -X POST ${webhookUrl}`;
 

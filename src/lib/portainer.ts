@@ -136,6 +136,28 @@ export const listStacks = async (
   return portainerFetch<PortainerStack[]>(baseUrl, token, "/api/stacks", insecureTls);
 };
 
+/** Fetch a single stack by ID. Returns null if not found. */
+export const getStack = async (
+  baseUrl: string,
+  token: string,
+  insecureTls: boolean,
+  stackId: number,
+  endpointId: number,
+): Promise<PortainerStack | null> => {
+  try {
+    return await portainerFetch<PortainerStack>(
+      baseUrl,
+      token,
+      `/api/stacks/${stackId}?endpointId=${endpointId}`,
+      insecureTls,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("404")) return null;
+    throw err;
+  }
+};
+
 /** List environments (endpoints) registered in this Portainer instance. */
 export const listEnvironments = async (
   baseUrl: string,

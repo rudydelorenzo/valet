@@ -1,6 +1,8 @@
 import { getWebhookByToken } from "@/lib/db/webhooks";
 import { createEvent } from "@/lib/db/webhook-events";
 import { EVENT_SOURCE, EVENT_TYPE } from "@/lib/constants";
+import { getPortainerInstance } from "@/lib/db/portainer-instances";
+import { getStack } from "@/lib/portainer";
 import { ensureWorker } from "@/lib/worker";
 
 /**
@@ -25,6 +27,29 @@ export const POST = async (
     return Response.json({ error: "Webhook is disabled" }, { status: 403 });
   }
 
+  // Pre-flight healthcheck — fail fast if the stack is unreachable
+  const instance = await getPortainerInstance(webhook.portainerInstanceId);
+  if (!instance) {
+    return Response.json(
+      { error: "Instance not found" },
+      { status: 424 },
+    );
+  }
+
+  const stack = await getStack(
+    instance.url,
+    instance.token,
+    instance.insecureTls,
+    webhook.stackId,
+    webhook.endpointId,
+  );
+  if (!stack) {
+    return Response.json(
+      { error: "Stack not found — it may have been deleted" },
+      { status: 424 },
+    );
+  }
+
   const event = await createEvent(webhook.id, EVENT_TYPE.DEPLOY, EVENT_SOURCE.WEBHOOK);
 
   ensureWorker();
@@ -34,7 +59,8 @@ export const POST = async (
     {
       received: true,
       eventId: event.id,
-      statusUrl: `${origin}/api/hooks/${token}/events/${event.id}`,
+      statusUrl: `${origin}/api/deploy/${token}/status/${event.id}`,
+      eventUrl: `${origin}/api/deploy/${token}/events/${event.id}`,
     },
     { status: 200 },
   );

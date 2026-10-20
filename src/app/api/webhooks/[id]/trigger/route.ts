@@ -2,6 +2,8 @@ import { getWebhook } from "@/lib/db/webhooks";
 import { createEvent, setEventStatus } from "@/lib/db/webhook-events";
 import { EVENT_SOURCE, EVENT_TYPE } from "@/lib/constants";
 import { requireAuth } from "@/lib/auth/guard";
+import { getPortainerInstance } from "@/lib/db/portainer-instances";
+import { getStack } from "@/lib/portainer";
 import { consumeDeployEvent } from "@/lib/worker/jobs/deploy";
 import { ensureWorker } from "@/lib/worker";
 
@@ -19,6 +21,29 @@ export const POST = async (
   const webhook = await getWebhook(webhookId);
   if (!webhook || webhook.userId !== userId) {
     return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Pre-flight healthcheck — fail fast if the stack is unreachable
+  const instance = await getPortainerInstance(webhook.portainerInstanceId);
+  if (!instance) {
+    return Response.json(
+      { success: false, message: "Instance not found" },
+      { status: 424 },
+    );
+  }
+
+  const stack = await getStack(
+    instance.url,
+    instance.token,
+    instance.insecureTls,
+    webhook.stackId,
+    webhook.endpointId,
+  );
+  if (!stack) {
+    return Response.json(
+      { success: false, message: "Stack not found — it may have been deleted" },
+      { status: 424 },
+    );
   }
 
   const event = await createEvent(webhook.id, EVENT_TYPE.DEPLOY, EVENT_SOURCE.MANUAL);

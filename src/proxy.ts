@@ -4,7 +4,7 @@ import { getSecret } from "@/lib/auth/secret";
 import { SESSION_COOKIE } from "@/lib/constants";
 
 const PUBLIC_PREFIXES = [
-  "/api/hooks/",   // inbound webhook receiver
+  "/api/deploy/",    // inbound webhook receiver
   "/api/auth/",    // login / callback / logout / session / providers
   "/api/setup",    // setup flow
   "/setup",        // setup page

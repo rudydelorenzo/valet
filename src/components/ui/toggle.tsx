@@ -39,7 +39,7 @@ export const Toggle = ({
         `}
       />
     </button>
-    <div>
+    <div className="w-14 text-right">
       <span className="text-sm font-medium">{label}</span>
       {description && (
         <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>

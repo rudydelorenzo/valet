@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EventLog } from "@/components/EventLog";
-import { WebhookStatusBadge } from "@/components/WebhookStatusBadge";
 import { LogoBackButton } from "@/components/ui/logo-back-button";
 import { InstanceIcon } from "@/components/ui/instance-icon";
+import { Toggle } from "@/components/ui/toggle";
 import { useEnvironments } from "@/hooks/use-environments";
-import { useStacks } from "@/hooks/use-stacks";
+import { PillBadge } from "@/components/ui/pill-badge";
 import { toast } from "sonner";
 
 interface Webhook {
@@ -26,6 +26,12 @@ interface Webhook {
   createdAt: string;
   eventsTotal?: number;
   eventsFailed?: number;
+}
+
+interface StackHealth {
+  healthy: boolean;
+  stackName?: string;
+  error?: string;
 }
 
 const WebhookDetailContent = ({
@@ -47,12 +53,25 @@ const WebhookDetailContent = ({
     ? environments.find((e) => e.Id === webhook.endpointId)?.Name
     : undefined;
 
-  const { stacks } = useStacks(
-    webhook?.portainerInstanceId ?? undefined,
-  );
-  const stackName = webhook
-    ? stacks.find((s) => s.Id === webhook.stackId)?.Name
-    : undefined;
+  const [stackHealth, setStackHealth] = useState<StackHealth | null>(null);
+
+  // Check stack health once on load
+  useEffect(() => {
+    if (!webhook) return;
+    const { portainerInstanceId, endpointId, stackId } = webhook;
+    fetch(
+      `/api/instances/${portainerInstanceId}/environments/${endpointId}/stacks/${stackId}`,
+    )
+      .then(async (r): Promise<StackHealth> => {
+        if (r.ok) {
+          const data = await r.json();
+          return { healthy: true, stackName: data.Name };
+        }
+        return { healthy: false, error: r.status === 404 ? "Stack not found" : "Unreachable" };
+      })
+      .then(setStackHealth)
+      .catch(() => setStackHealth({ healthy: false, error: "Connection failed" }));
+  }, [webhook?.portainerInstanceId, webhook?.endpointId, webhook?.stackId]);
 
   useEffect(() => {
     fetch(`/api/webhooks/${id}`)
@@ -62,7 +81,7 @@ const WebhookDetailContent = ({
   }, [id]);
 
   const webhookUrl = webhook
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/api/hooks/${webhook.token}`
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/api/deploy/${webhook.token}`
     : "";
 
   const handleCopy = () => {
@@ -70,12 +89,12 @@ const WebhookDetailContent = ({
     toast.success("Webhook URL copied to clipboard");
   };
 
-  const handleToggle = async () => {
+  const handleToggle = async (enabled: boolean) => {
     if (!webhook) return;
     await fetch(`/api/webhooks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: !webhook.enabled }),
+      body: JSON.stringify({ enabled }),
     });
     // Refresh webhook data
     fetch(`/api/webhooks/${id}`)
@@ -139,11 +158,20 @@ const WebhookDetailContent = ({
           <h1 className="text-2xl font-semibold tracking-tight">
             {webhook.name}
           </h1>
-          <WebhookStatusBadge status={webhook.status} />
         </LogoBackButton>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleToggle}>
-            {webhook.enabled ? "Disable" : "Enable"}
+        <div className="flex items-center gap-3">
+          <Toggle
+            checked={webhook.enabled}
+            onChange={handleToggle}
+            label={webhook.enabled ? "Enabled" : "Disabled"}
+          />
+          <div className="h-6 w-px bg-border" />
+          <Button
+            variant="outline"
+            onClick={handleTrigger}
+            disabled={triggering}
+          >
+            {triggering ? "Triggering…" : "Trigger now"}
           </Button>
           <Button variant="destructive" onClick={handleDelete}>
             Delete
@@ -183,7 +211,7 @@ const WebhookDetailContent = ({
         <Card>
           <CardContent className="text-sm">
             <span className="text-muted-foreground">Stack:</span>{" "}
-            <code>{stackName ?? "Loading…"}</code>
+            <code>{stackHealth?.stackName ?? "Loading…"}</code>
           </CardContent>
         </Card>
         <Card>
@@ -194,8 +222,14 @@ const WebhookDetailContent = ({
         </Card>
         <Card>
           <CardContent className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Status:</span>{" "}
-            <WebhookStatusBadge status={webhook.status} />
+            <span className="text-muted-foreground">Stack connection:</span>{" "}
+            {stackHealth === null ? (
+              <span className="text-muted-foreground">Checking…</span>
+            ) : stackHealth.healthy ? (
+              <PillBadge color="green" dot>Healthy</PillBadge>
+            ) : (
+              <PillBadge color="red" dot>Unhealthy</PillBadge>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -206,12 +240,6 @@ const WebhookDetailContent = ({
           last 24h — this hook may be misbehaving.
         </p>
       )}
-
-      <div className="mb-8 flex items-center gap-3">
-        <Button onClick={handleTrigger} disabled={triggering}>
-          {triggering ? "Triggering…" : "Trigger now"}
-        </Button>
-      </div>
 
       <Card>
         <CardHeader>
