@@ -20,7 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
-import type { User } from "@/types/api";
+import type { User } from "@/lib/db/types";
 
 const AdminUsersPage = () => {
   const [users, setUsers] = useState<User[]>([]);

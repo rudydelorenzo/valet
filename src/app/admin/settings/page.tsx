@@ -15,7 +15,7 @@ import {
   type OidcProviderFormValues,
 } from "@/components/OidcProviderForm";
 import { toast } from "sonner";
-import type { OidcProvider } from "@/types/api";
+import type { OidcProvider } from "@/lib/db/types";
 
 const AdminSettingsPage = () => {
   const [providers, setProviders] = useState<OidcProvider[]>([]);

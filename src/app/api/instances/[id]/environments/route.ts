@@ -1,6 +1,4 @@
-import { db } from "@/lib/db";
-import { portainerInstances } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { getPortainerInstance } from "@/lib/db/portainer-instances";
 import { listEnvironments } from "@/lib/portainer";
 import { requireAuth } from "@/lib/auth/guard";
 
@@ -11,13 +9,9 @@ export const GET = async (
   const userId = await requireAuth();
   const { id } = await params;
 
-  const [instance] = await db
-    .select()
-    .from(portainerInstances)
-    .where(and(eq(portainerInstances.id, id), eq(portainerInstances.userId, userId)))
-    .limit(1);
+  const instance = await getPortainerInstance(id);
 
-  if (!instance) {
+  if (!instance || instance.userId !== userId) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 

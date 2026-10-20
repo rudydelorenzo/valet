@@ -11,7 +11,7 @@ import { ReachabilityBadge } from "@/components/ReachabilityBadge";
 import { useReachability } from "@/hooks/use-reachability";
 import { useStacks } from "@/hooks/use-stacks";
 import { Webhook as WebhookIcon } from "lucide-react";
-import type { Webhook } from "@/types/api";
+import type { Webhook } from "@/lib/db/types";
 
 const WebhookGroup = ({
   instanceId,

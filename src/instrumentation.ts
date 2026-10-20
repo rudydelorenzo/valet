@@ -1,9 +1,8 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     // Apply pending DB migrations
-    const { migrate } = await import("drizzle-orm/better-sqlite3/migrator");
-    const { db } = await import("./lib/db");
-    migrate(db, { migrationsFolder: "./drizzle" });
+    const { runMigrations } = await import("./lib/db/migrate");
+    runMigrations();
 
     // Start the background worker
     const { registerEventHandler, startWorker } = await import("./lib/worker");

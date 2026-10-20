@@ -57,5 +57,6 @@ export const WEBHOOK_STATUS = {
   DEGRADED: "degraded",
 } as const;
 
-export type WebhookStatus =
-  (typeof WEBHOOK_STATUS)[keyof typeof WEBHOOK_STATUS];
+// The union type lives with the other API types; re-exported here so it
+// stays next to its values. Values above must match the union.
+export type { WebhookStatus } from "@/types/api";

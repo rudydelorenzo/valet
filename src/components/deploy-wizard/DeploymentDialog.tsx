@@ -14,7 +14,7 @@ import { NameStep } from "./steps/NameStep";
 import { SuccessStep } from "./steps/SuccessStep";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Instance, Stack, CreatedWebhook } from "@/types/api";
+import type { Instance, Stack, CreatedWebhook } from "@/lib/db/types";
 
 // ── Step definitions ───────────────────────────────────────────────
 

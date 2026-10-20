@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EventLog } from "@/components/EventLog";
 import { DeploymentDialog } from "@/components/deploy-wizard/DeploymentDialog";
 import { Plus, Server, ArrowRight, Webhook as WebhookIcon } from "lucide-react";
-import type { Webhook } from "@/types/api";
+import type { Webhook } from "@/lib/db/types";
 
 const Dashboard = () => {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);

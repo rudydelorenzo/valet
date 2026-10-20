@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { oidcProviders } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { getProvider } from "@/lib/db/oidc-providers";
 import {
   discover,
   exchangeCode,
@@ -9,7 +7,7 @@ import {
   clearPKCECookie,
 } from "@/lib/auth/oidc";
 import { createSessionJwt } from "@/lib/auth/session";
-import { findOrCreateUser } from "@/lib/auth/user";
+import { findOrCreateUser } from "@/lib/db/users";
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_SECONDS,
@@ -41,11 +39,7 @@ export const GET = async (request: NextRequest) => {
   }
 
   // Load the provider
-  const [provider] = await db
-    .select()
-    .from(oidcProviders)
-    .where(eq(oidcProviders.id, pkce.providerId))
-    .limit(1);
+  const provider = await getProvider(pkce.providerId);
 
   if (!provider) {
     return NextResponse.redirect(new URL("/login?error=Provider+not+found", request.url));

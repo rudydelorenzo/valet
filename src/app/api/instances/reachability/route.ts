@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { portainerInstances } from "@/lib/db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { listPortainerInstancesByUser } from "@/lib/db/portainer-instances";
 import { requireAuth } from "@/lib/auth/guard";
 import { pingInstance } from "@/lib/portainer";
-
-export interface ReachabilityResult {
-  reachable: boolean;
-  version?: string;
-}
+import type { ReachabilityResult } from "@/types/api";
 
 /**
  * GET /api/instances/reachability?ids=inst_abc,inst_def
@@ -30,20 +24,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ results: {} });
   }
 
-  const instances = await db
-    .select({
-      id: portainerInstances.id,
-      url: portainerInstances.url,
-      token: portainerInstances.token,
-      insecureTls: portainerInstances.insecureTls,
-    })
-    .from(portainerInstances)
-    .where(
-      and(
-        eq(portainerInstances.userId, userId),
-        inArray(portainerInstances.id, ids),
-      ),
-    );
+  const instances = await listPortainerInstancesByUser(userId, ids);
 
   const settled = await Promise.allSettled(
     instances.map(

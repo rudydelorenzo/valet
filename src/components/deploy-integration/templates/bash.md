@@ -1,6 +1,6 @@
 # Using your deploy hook with Bash
 
-Integrate this webhook into your CI pipeline or scripts.
+Integrate this webhook anywhere.
 
 ## Full pipeline
 

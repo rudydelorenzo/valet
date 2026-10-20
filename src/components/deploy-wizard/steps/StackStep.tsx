@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Layers, Loader, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStacks } from "@/hooks/use-stacks";
-import type { Stack } from "@/types/api";
+import type { Stack } from "@/lib/db/types";
 
 const StackStep = ({
   instanceId,

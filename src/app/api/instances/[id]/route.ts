@@ -1,39 +1,53 @@
-import { db } from "@/lib/db";
-import { portainerInstances } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import {
+  deletePortainerInstance,
+  getPortainerInstance,
+  toPublicInstance,
+  updatePortainerInstance,
+} from "@/lib/db/portainer-instances";
 import { requireAuth } from "@/lib/auth/guard";
 import { validateInstance } from "@/lib/portainer";
+import type { Instance } from "@/lib/db/types";
+import type { ApiError } from "@/types/api";
 
 export const GET = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) => {
+): Promise<NextResponse<Instance | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;
 
-  const [instance] = await db
-    .select()
-    .from(portainerInstances)
-    .where(and(eq(portainerInstances.id, id), eq(portainerInstances.userId, userId)))
-    .limit(1);
+  const instance = await getPortainerInstance(id);
 
-  if (!instance) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+  if (!instance || instance.userId !== userId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { token, ...safe } = instance;
-  return Response.json({ ...safe, hasToken: true });
+  // Never expose the access token — the handler's return type enforces
+  // the public shape
+  return NextResponse.json(toPublicInstance(instance));
 };
 
 export const PATCH = async (
   request: Request,
   { params }: { params: Promise<{ id: string }> },
-) => {
+): Promise<NextResponse<{ ok: boolean } | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;
 
+  const current = await getPortainerInstance(id);
+
+  if (!current || current.userId !== userId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const body = await request.json();
-  const updates: Record<string, unknown> = {};
+  const updates: {
+    name?: string;
+    url?: string;
+    token?: string;
+    insecureTls?: boolean;
+  } = {};
 
   if (body.name !== undefined) updates.name = body.name;
   if (body.url !== undefined) updates.url = body.url;
@@ -42,55 +56,40 @@ export const PATCH = async (
 
   // If URL or token changed, validate the new connection
   if (updates.url || updates.token) {
-    const [current] = await db
-      .select()
-      .from(portainerInstances)
-      .where(and(eq(portainerInstances.id, id), eq(portainerInstances.userId, userId)))
-      .limit(1);
-
-    if (!current) {
-      return Response.json({ error: "Not found" }, { status: 404 });
-    }
-
     const validation = await validateInstance(
-      (updates.url as string) ?? current.url,
-      (updates.token as string) ?? current.token,
-      (updates.insecureTls as boolean) ?? current.insecureTls,
+      updates.url ?? current.url,
+      updates.token ?? current.token,
+      updates.insecureTls ?? current.insecureTls,
     );
 
     if (!validation.ok) {
-      return Response.json({ error: validation.error }, { status: 400 });
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
   }
 
-  const [updated] = await db
-    .update(portainerInstances)
-    .set(updates)
-    .where(and(eq(portainerInstances.id, id), eq(portainerInstances.userId, userId)))
-    .returning();
+  const updated = await updatePortainerInstance(id, updates);
 
   if (!updated) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return Response.json({ ok: true });
+  return NextResponse.json({ ok: true });
 };
 
 export const DELETE = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) => {
+): Promise<NextResponse<{ ok: boolean } | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;
 
-  const [deleted] = await db
-    .delete(portainerInstances)
-    .where(and(eq(portainerInstances.id, id), eq(portainerInstances.userId, userId)))
-    .returning();
+  const instance = await getPortainerInstance(id);
 
-  if (!deleted) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+  if (!instance || instance.userId !== userId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return Response.json({ ok: true });
+  await deletePortainerInstance(id);
+
+  return NextResponse.json({ ok: true });
 };

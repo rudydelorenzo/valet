@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { portainerInstances } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { getPortainerInstance } from "@/lib/db/portainer-instances";
 import { getStack } from "@/lib/portainer";
 import { requireAuth } from "@/lib/auth/guard";
 
@@ -19,13 +17,9 @@ export async function GET(
   const userId = await requireAuth();
   const { id, envId, stackId } = await params;
 
-  const [instance] = await db
-    .select()
-    .from(portainerInstances)
-    .where(and(eq(portainerInstances.id, id), eq(portainerInstances.userId, userId)))
-    .limit(1);
+  const instance = await getPortainerInstance(id);
 
-  if (!instance) {
+  if (!instance || instance.userId !== userId) {
     return NextResponse.json({ error: "Instance not found" }, { status: 404 });
   }
 

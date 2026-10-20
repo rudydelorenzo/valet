@@ -13,7 +13,7 @@ import { useEnvironments } from "@/hooks/use-environments";
 import { PillBadge } from "@/components/ui/pill-badge";
 import { Code } from "lucide-react";
 import { toast } from "sonner";
-import type { WebhookDetail } from "@/types/api";
+import type { WebhookDetail } from "@/lib/db/types";
 
 interface StackHealth {
   healthy: boolean;

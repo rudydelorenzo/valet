@@ -1,29 +1,24 @@
-import { db } from "@/lib/db";
-import { oidcProviders } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
-import { DEFAULT_OIDC_SCOPES } from "@/lib/constants";
-import { normalizeScopes } from "@/lib/oidc-scopes";
+import { NextResponse } from "next/server";
+import {
+  createProvider,
+  listProviders,
+  toPublicProvider,
+} from "@/lib/db/oidc-providers";
 import { discover } from "@/lib/auth/oidc";
+import type { OidcProvider } from "@/lib/db/types";
+import type { ApiError } from "@/types/api";
 
-export const GET = async () => {
-  const providers = await db
-    .select({
-      id: oidcProviders.id,
-      name: oidcProviders.name,
-      issuer: oidcProviders.issuer,
-      clientId: oidcProviders.clientId,
-      scopes: oidcProviders.scopes,
-      skipEmailVerification: oidcProviders.skipEmailVerification,
-      enabled: oidcProviders.enabled,
-      createdAt: oidcProviders.createdAt,
-    })
-    .from(oidcProviders)
-    .orderBy(desc(oidcProviders.createdAt));
+export const GET = async (): Promise<NextResponse<OidcProvider[]>> => {
+  const providers = await listProviders();
 
-  return Response.json(providers);
+  // Never expose the client secret — the handler's return type enforces
+  // the public shape
+  return NextResponse.json(providers.map(toPublicProvider));
 };
 
-export const POST = async (request: Request) => {
+export const POST = async (
+  request: Request,
+): Promise<NextResponse<OidcProvider | ApiError>> => {
   const body = await request.json();
   const { name, issuer, clientId, clientSecret, scopes, skipEmailVerification } = body as {
     name?: string;
@@ -35,7 +30,7 @@ export const POST = async (request: Request) => {
   };
 
   if (!name || !issuer || !clientId || !clientSecret) {
-    return Response.json(
+    return NextResponse.json(
       { error: "name, issuer, clientId, and clientSecret are required" },
       { status: 400 },
     );
@@ -45,23 +40,22 @@ export const POST = async (request: Request) => {
   try {
     await discover(issuer);
   } catch {
-    return Response.json(
+    return NextResponse.json(
       { error: "Could not discover OIDC endpoints at the given issuer URL" },
       { status: 400 },
     );
   }
 
-  const [provider] = await db
-    .insert(oidcProviders)
-    .values({
-      name,
-      issuer,
-      clientId,
-      clientSecret,
-      scopes: normalizeScopes(scopes || DEFAULT_OIDC_SCOPES),
-      skipEmailVerification: skipEmailVerification ?? false,
-    })
-    .returning();
+  const provider = await createProvider({
+    name,
+    issuer,
+    clientId,
+    clientSecret,
+    scopes,
+    skipEmailVerification: skipEmailVerification ?? false,
+  });
 
-  return Response.json(provider, { status: 201 });
+  // Never expose the client secret — the handler's return type enforces
+  // the public shape
+  return NextResponse.json(toPublicProvider(provider), { status: 201 });
 };

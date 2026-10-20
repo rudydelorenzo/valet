@@ -1,19 +1,13 @@
-import { db } from "@/lib/db";
-import { oidcProviders } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import { listEnabledProviders } from "@/lib/db/oidc-providers";
+import type { ProviderSummary } from "@/lib/db/types";
 
 /**
  * GET — list enabled providers (public, used by the login page).
  * Only exposes name and id — never secrets.
  */
-export const GET = async () => {
-  const providers = await db
-    .select({
-      id: oidcProviders.id,
-      name: oidcProviders.name,
-    })
-    .from(oidcProviders)
-    .where(eq(oidcProviders.enabled, true));
+export const GET = async (): Promise<NextResponse<ProviderSummary[]>> => {
+  const providers = await listEnabledProviders();
 
-  return Response.json(providers);
+  return NextResponse.json(providers.map(({ id, name }) => ({ id, name })));
 };

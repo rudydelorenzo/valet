@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { portainerInstances } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { getPortainerInstance } from "@/lib/db/portainer-instances";
 
 /**
  * GET /api/instances/[id]/favicon
@@ -18,11 +16,7 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const [instance] = await db
-    .select({ url: portainerInstances.url })
-    .from(portainerInstances)
-    .where(eq(portainerInstances.id, id))
-    .limit(1);
+  const instance = await getPortainerInstance(id);
 
   if (!instance) {
     return new NextResponse(null, { status: 404 });

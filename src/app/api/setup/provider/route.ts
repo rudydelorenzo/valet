@@ -1,11 +1,16 @@
-import { db } from "@/lib/db";
-import { oidcProviders } from "@/lib/db/schema";
+import { NextResponse } from "next/server";
+import {
+  createProvider,
+  hasAnyProvider,
+  toPublicProvider,
+} from "@/lib/db/oidc-providers";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { discover } from "@/lib/auth/oidc";
 import { getSecret } from "@/lib/auth/secret";
-import { SETUP_COOKIE, JWT_ISSUER, DEFAULT_OIDC_SCOPES } from "@/lib/constants";
-import { normalizeScopes } from "@/lib/oidc-scopes";
+import { SETUP_COOKIE, JWT_ISSUER } from "@/lib/constants";
+import type { OidcProvider } from "@/lib/db/types";
+import type { ApiError } from "@/types/api";
 
 /**
  * POST — add the first OIDC provider during initial setup.
@@ -14,12 +19,14 @@ import { normalizeScopes } from "@/lib/oidc-scopes";
  * - Requires a valid, unexpired valet.setup JWT cookie.
  * - Rejects if any provider already exists (one-time-only operation).
  */
-export const POST = async (request: Request) => {
+export const POST = async (
+  request: Request,
+): Promise<NextResponse<OidcProvider | ApiError>> => {
   // 1. Verify setup cookie
   const store = await cookies();
   const setupToken = store.get(SETUP_COOKIE)?.value;
   if (!setupToken) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Setup token required" },
       { status: 401 },
     );
@@ -28,16 +35,15 @@ export const POST = async (request: Request) => {
   try {
     await jwtVerify(setupToken, getSecret(), { issuer: JWT_ISSUER });
   } catch {
-    return Response.json(
+    return NextResponse.json(
       { error: "Invalid or expired setup token" },
       { status: 401 },
     );
   }
 
   // 2. Ensure no providers exist yet
-  const existing = await db.select().from(oidcProviders).limit(1);
-  if (existing.length > 0) {
-    return Response.json(
+  if (await hasAnyProvider()) {
+    return NextResponse.json(
       { error: "An identity provider is already configured" },
       { status: 409 },
     );
@@ -56,7 +62,7 @@ export const POST = async (request: Request) => {
   const { name, issuer, clientId, clientSecret, scopes, skipEmailVerification } = body;
 
   if (!name || !issuer || !clientId || !clientSecret) {
-    return Response.json(
+    return NextResponse.json(
       { error: "name, issuer, clientId, and clientSecret are required" },
       { status: 400 },
     );
@@ -66,24 +72,23 @@ export const POST = async (request: Request) => {
   try {
     await discover(issuer);
   } catch {
-    return Response.json(
+    return NextResponse.json(
       { error: "Could not discover OIDC endpoints at the given issuer URL" },
       { status: 400 },
     );
   }
 
   // 5. Create provider
-  const [provider] = await db
-    .insert(oidcProviders)
-    .values({
-      name,
-      issuer,
-      clientId,
-      clientSecret,
-      scopes: normalizeScopes(scopes || DEFAULT_OIDC_SCOPES),
-      skipEmailVerification: skipEmailVerification ?? false,
-    })
-    .returning();
+  const provider = await createProvider({
+    name,
+    issuer,
+    clientId,
+    clientSecret,
+    scopes,
+    skipEmailVerification: skipEmailVerification ?? false,
+  });
 
-  return Response.json(provider, { status: 201 });
+  // Never expose the client secret — the handler's return type enforces
+  // the public shape
+  return NextResponse.json(toPublicProvider(provider), { status: 201 });
 };

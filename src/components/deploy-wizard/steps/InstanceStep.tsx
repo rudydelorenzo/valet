@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { InstanceIcon } from "@/components/ui/instance-icon";
 import { Plus, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Instance } from "@/types/api";
+import type { Instance } from "@/lib/db/types";
 
 const InstanceStep = ({
   instances,

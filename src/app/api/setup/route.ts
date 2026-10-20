@@ -1,5 +1,4 @@
-import { db } from "@/lib/db";
-import { oidcProviders } from "@/lib/db/schema";
+import { hasAnyProvider } from "@/lib/db/oidc-providers";
 import { getOrGenerateSetupCode, verifySetupCode } from "@/lib/setup";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
@@ -14,8 +13,7 @@ import { SETUP_COOKIE, JWT_ISSUER, SETUP_COOKIE_MAX_AGE_SECONDS } from "@/lib/co
  */
 export const GET = async () => {
   try {
-    const providers = await db.select().from(oidcProviders).limit(1);
-    if (providers.length > 0) {
+    if (await hasAnyProvider()) {
       return Response.json({ configured: true });
     }
   } catch {

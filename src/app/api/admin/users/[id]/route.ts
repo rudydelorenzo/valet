@@ -1,6 +1,4 @@
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
-import { eq, and, ne } from "drizzle-orm";
+import { countAdmins, updateUser } from "@/lib/db/users";
 
 export const PATCH = async (
   request: Request,
@@ -15,7 +13,7 @@ export const PATCH = async (
 
   // If removing admin, ensure it's not the last one
   if (!body.isAdmin) {
-    const adminCount = await db.$count(users, eq(users.isAdmin, true));
+    const adminCount = await countAdmins();
     if (adminCount <= 1) {
       return Response.json(
         { error: "Cannot remove the last admin" },
@@ -24,11 +22,7 @@ export const PATCH = async (
     }
   }
 
-  const [updated] = await db
-    .update(users)
-    .set({ isAdmin: body.isAdmin })
-    .where(eq(users.id, id))
-    .returning();
+  const updated = await updateUser(id, { isAdmin: body.isAdmin });
 
   if (!updated) {
     return Response.json({ error: "Not found" }, { status: 404 });

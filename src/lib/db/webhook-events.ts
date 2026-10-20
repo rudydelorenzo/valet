@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { webhookEvents } from "@/lib/db/schema";
+import { webhookEvents, webhooks, portainerInstances } from "@/lib/db/schema";
 import { eq, and, desc, asc, lte } from "drizzle-orm";
 import { EVENT_STATUS } from "@/lib/constants";
 
@@ -32,6 +32,27 @@ export const listWebhookEvents = async (webhookId: string, limit = 100) => {
     .select()
     .from(webhookEvents)
     .where(eq(webhookEvents.webhookId, webhookId))
+    .orderBy(desc(webhookEvents.createdAt))
+    .limit(limit);
+};
+
+/** List recent events across all of a user's webhooks, most recent first. */
+export const listWebhookEventsForUser = async (userId: string, limit = 20) => {
+  return db
+    .select({
+      id: webhookEvents.id,
+      status: webhookEvents.status,
+      type: webhookEvents.type,
+      message: webhookEvents.message,
+      triggerSource: webhookEvents.triggerSource,
+      createdAt: webhookEvents.createdAt,
+      webhookName: webhooks.name,
+      instanceName: portainerInstances.name,
+    })
+    .from(webhookEvents)
+    .innerJoin(webhooks, eq(webhookEvents.webhookId, webhooks.id))
+    .innerJoin(portainerInstances, eq(webhooks.portainerInstanceId, portainerInstances.id))
+    .where(eq(webhooks.userId, userId))
     .orderBy(desc(webhookEvents.createdAt))
     .limit(limit);
 };

@@ -113,7 +113,6 @@ export const listWebhooksByUser = async (userId: string) => {
     .select({
       id: webhooks.id,
       name: webhooks.name,
-      token: webhooks.token,
       portainerInstanceId: webhooks.portainerInstanceId,
       stackId: webhooks.stackId,
       endpointId: webhooks.endpointId,

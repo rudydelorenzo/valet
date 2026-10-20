@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { oidcProviders } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { getProvider, listEnabledProviders } from "@/lib/db/oidc-providers";
 import {
   discover,
   buildAuthorizationUrl,
@@ -16,10 +14,7 @@ export const GET = async (request: NextRequest) => {
 
   // If no provider specified, check how many exist
   if (!providerId) {
-    const providers = await db
-      .select({ id: oidcProviders.id })
-      .from(oidcProviders)
-      .where(eq(oidcProviders.enabled, true));
+    const providers = await listEnabledProviders();
 
     if (providers.length === 0) {
       return NextResponse.redirect(new URL("/setup", request.url));
@@ -35,11 +30,7 @@ export const GET = async (request: NextRequest) => {
   }
 
   // Load the specified provider
-  const [provider] = await db
-    .select()
-    .from(oidcProviders)
-    .where(eq(oidcProviders.id, providerId))
-    .limit(1);
+  const provider = await getProvider(providerId);
 
   if (!provider || !provider.enabled) {
     return NextResponse.redirect(new URL("/login?error=Provider+not+found", request.url));
