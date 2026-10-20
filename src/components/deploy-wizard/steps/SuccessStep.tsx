@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Terminal } from "lucide-react";
 import { CopyableContent } from "@/components/CopyableContent";
+import { getDeployUrl } from "@/lib/webhook-urls";
 
 const SuccessStep = ({
   webhookName,
@@ -11,10 +12,10 @@ const SuccessStep = ({
   token: string;
   onDone: () => void;
 }) => {
-  const webhookUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/api/deploy/${token}`
-      : `/api/deploy/${token}`;
+  const webhookUrl = getDeployUrl(
+    typeof window !== "undefined" ? window.location.origin : "",
+    token,
+  );
 
   const curlExample = `curl -X POST ${webhookUrl}`;
 

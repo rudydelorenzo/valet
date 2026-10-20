@@ -15,14 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { InstanceIcon } from "@/components/ui/instance-icon";
 import { ReachabilityBadge } from "@/components/ReachabilityBadge";
 import { useReachability } from "@/hooks/use-reachability";
-
-interface Instance {
-  id: string;
-  name: string;
-  url: string;
-  insecureTls: boolean;
-  createdAt: string;
-}
+import type { Instance } from "@/types/api";
 
 const InstancesPage = () => {
   const [instances, setInstances] = useState<Instance[]>([]);

@@ -6,16 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EventLog } from "@/components/EventLog";
 import { DeploymentDialog } from "@/components/deploy-wizard/DeploymentDialog";
-import { Plus, Server, ArrowRight, Webhook } from "lucide-react";
-
-interface Webhook {
-  id: string;
-  name: string;
-  stackName: string;
-  enabled: boolean;
-  status: string;
-  instanceName: string | null;
-}
+import { Plus, Server, ArrowRight, Webhook as WebhookIcon } from "lucide-react";
+import type { Webhook } from "@/types/api";
 
 const Dashboard = () => {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
@@ -98,7 +90,7 @@ const Dashboard = () => {
           className="group flex items-center gap-3 rounded-xl border border-border p-3.5 text-left transition-all hover:bg-muted/50 active:scale-[0.99]"
         >
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <Webhook className="size-4 text-muted-foreground" />
+            <WebhookIcon className="size-4 text-muted-foreground" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">Manage hooks</div>

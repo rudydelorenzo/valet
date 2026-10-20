@@ -2,15 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useEnvironments } from "@/hooks/use-environments";
-
-export interface Stack {
-  Id: number;
-  Name: string;
-  EndpointId: number;
-  Status: number;
-  /** Enriched from the environments hook. */
-  environmentName?: string;
-}
+import type { Stack } from "@/types/api";
 
 /**
  * Fetches and manages Portainer stacks for an instance. Uses the

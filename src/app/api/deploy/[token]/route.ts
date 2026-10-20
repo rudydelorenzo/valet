@@ -3,6 +3,7 @@ import { createEvent } from "@/lib/db/webhook-events";
 import { EVENT_SOURCE, EVENT_TYPE } from "@/lib/constants";
 import { getPortainerInstance } from "@/lib/db/portainer-instances";
 import { getStack } from "@/lib/portainer";
+import { getDeployUrl, getStatusUrl, getEventUrl } from "@/lib/webhook-urls";
 import { ensureWorker } from "@/lib/worker";
 
 /**
@@ -59,8 +60,9 @@ export const POST = async (
     {
       received: true,
       eventId: event.id,
-      statusUrl: `${origin}/api/deploy/${token}/status/${event.id}`,
-      eventUrl: `${origin}/api/deploy/${token}/events/${event.id}`,
+      deployUrl: getDeployUrl(origin, token),
+      statusUrl: getStatusUrl(origin, token, event.id),
+      eventUrl: getEventUrl(origin, token, event.id),
     },
     { status: 200 },
   );

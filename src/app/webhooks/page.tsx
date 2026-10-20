@@ -10,21 +10,8 @@ import { InstanceIcon } from "@/components/ui/instance-icon";
 import { ReachabilityBadge } from "@/components/ReachabilityBadge";
 import { useReachability } from "@/hooks/use-reachability";
 import { useStacks } from "@/hooks/use-stacks";
-import { Webhook } from "lucide-react";
-
-interface Webhook {
-  id: string;
-  name: string;
-  token: string;
-  portainerInstanceId: string;
-  stackId: number;
-  enabled: boolean;
-  status: string;
-  instanceName: string | null;
-  createdAt: string;
-  eventsTotal?: number;
-  eventsFailed?: number;
-}
+import { Webhook as WebhookIcon } from "lucide-react";
+import type { Webhook } from "@/types/api";
 
 const WebhookGroup = ({
   instanceId,
@@ -74,7 +61,7 @@ const WebhookGroup = ({
               <Card className="transition-shadow hover:shadow-md">
                 <CardContent className="flex items-center gap-4">
                   <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
-                    <Webhook className="size-5 text-muted-foreground" />
+                    <WebhookIcon className="size-5 text-muted-foreground" />
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col justify-center">
                     <div className="text-base font-medium">{w.name}</div>

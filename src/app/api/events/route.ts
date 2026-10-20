@@ -13,6 +13,7 @@ export const GET = async () => {
     .select({
       id: webhookEvents.id,
       status: webhookEvents.status,
+      type: webhookEvents.type,
       message: webhookEvents.message,
       triggerSource: webhookEvents.triggerSource,
       createdAt: webhookEvents.createdAt,

@@ -1,14 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-
-export interface Environment {
-  Id: number;
-  Name: string;
-  Type: number;
-  URL: string;
-  Status: number;
-}
+import type { Environment } from "@/types/api";
 
 /**
  * Fetches and manages Portainer environments for an instance.

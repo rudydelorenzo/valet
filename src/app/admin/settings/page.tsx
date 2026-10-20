@@ -15,20 +15,10 @@ import {
   type OidcProviderFormValues,
 } from "@/components/OidcProviderForm";
 import { toast } from "sonner";
-
-interface Provider {
-  id: string;
-  name: string;
-  issuer: string;
-  clientId: string;
-  scopes: string;
-  skipEmailVerification: boolean;
-  enabled: boolean;
-  createdAt: string;
-}
+import type { OidcProvider } from "@/types/api";
 
 const AdminSettingsPage = () => {
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providers, setProviders] = useState<OidcProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -72,12 +62,12 @@ const AdminSettingsPage = () => {
     load();
   };
 
-  const handleEdit = (p: Provider) => {
+  const handleEdit = (p: OidcProvider) => {
     setEditingId(p.id);
     setShowForm(true);
   };
 
-  const handleToggle = async (p: Provider) => {
+  const handleToggle = async (p: OidcProvider) => {
     await fetch(`/api/admin/providers/${p.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

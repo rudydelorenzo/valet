@@ -8,25 +8,12 @@ import { EventLog } from "@/components/EventLog";
 import { LogoBackButton } from "@/components/ui/logo-back-button";
 import { InstanceIcon } from "@/components/ui/instance-icon";
 import { Toggle } from "@/components/ui/toggle";
+import { DeployIntegrationDialog } from "@/components/deploy-integration/DeployIntegrationDialog";
 import { useEnvironments } from "@/hooks/use-environments";
 import { PillBadge } from "@/components/ui/pill-badge";
+import { Code } from "lucide-react";
 import { toast } from "sonner";
-
-interface Webhook {
-  id: string;
-  name: string;
-  token: string;
-  portainerInstanceId: string;
-  stackId: number;
-  endpointId: number;
-  enabled: boolean;
-  status: string;
-  debounceSeconds: number;
-  instanceName: string | null;
-  createdAt: string;
-  eventsTotal?: number;
-  eventsFailed?: number;
-}
+import type { WebhookDetail } from "@/types/api";
 
 interface StackHealth {
   healthy: boolean;
@@ -41,10 +28,11 @@ const WebhookDetailContent = ({
 }) => {
   const { id } = use(params);
   const router = useRouter();
-  const [webhook, setWebhook] = useState<Webhook | null>(null);
+  const [webhook, setWebhook] = useState<WebhookDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
   const [eventLogKey, setEventLogKey] = useState(0);
+  const [integrationOpen, setIntegrationOpen] = useState(false);
 
   const { environments } = useEnvironments(
     webhook?.portainerInstanceId ?? undefined,
@@ -200,6 +188,32 @@ const WebhookDetailContent = ({
           </p>
         </CardContent>
       </Card>
+
+      {/* Big integration CTA */}
+      <div className="mb-6">
+        <button
+          type="button"
+          onClick={() => setIntegrationOpen(true)}
+          className="btn-tactile group flex w-full items-center gap-4 rounded-xl p-5 text-left text-primary-foreground cursor-pointer transition-all active:scale-[0.99]"
+        >
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-white/15">
+            <Code className="size-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-base font-semibold">Use your deploy hook</div>
+            <div className="text-sm text-primary-foreground/70">
+              Get code snippets to integrate into your CI pipeline or scripts
+            </div>
+          </div>
+        </button>
+      </div>
+
+      <DeployIntegrationDialog
+        open={integrationOpen}
+        onOpenChange={setIntegrationOpen}
+        webhook={webhook}
+        origin={typeof window !== "undefined" ? window.location.origin : ""}
+      />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         <Card>

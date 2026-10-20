@@ -5,16 +5,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { LiveToggle } from "@/components/LiveToggle";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Event {
-  id: string;
-  status: string;
-  message: string | null;
-  triggerSource: string;
-  createdAt: string;
-  webhookName?: string;
-  instanceName?: string;
-}
+import type { Event } from "@/types/api";
 
 interface EventLogProps {
   /** URL to GET events from. Must return a JSON array. */
@@ -84,9 +75,14 @@ const EventLog = ({ fetchUrl, limit = 100, live: initialLive = false }: EventLog
                     )}
                   />
                   <div className="min-w-0 flex-1">
-                    <span className="text-sm font-medium">
-                      {evt.webhookName ?? "—"}
+                    <span className="text-sm font-medium capitalize">
+                      {evt.type}
                     </span>
+                    {evt.webhookName && (
+                      <span className="ml-1.5 text-xs text-muted-foreground">
+                        {evt.webhookName}
+                      </span>
+                    )}
                     {evt.instanceName && (
                       <span className="ml-1.5 text-xs text-muted-foreground">
                         on {evt.instanceName}
@@ -138,4 +134,3 @@ const EventLog = ({ fetchUrl, limit = 100, live: initialLive = false }: EventLog
 };
 
 export { EventLog };
-export type { Event };

@@ -21,15 +21,7 @@ import { ReachabilityBadge } from "@/components/ReachabilityBadge";
 import { LogoBackButton } from "@/components/ui/logo-back-button";
 import { InstanceIcon } from "@/components/ui/instance-icon";
 import { RefreshCw } from "lucide-react";
-
-interface Instance {
-  id: string;
-  name: string;
-  url: string;
-  insecureTls: boolean;
-  hasToken: boolean;
-  createdAt: string;
-}
+import type { Instance } from "@/types/api";
 
 const ENVIRONMENT_TYPES: Record<number, string> = {
   1: "Docker",
