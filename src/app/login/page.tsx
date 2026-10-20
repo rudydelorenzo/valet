@@ -57,18 +57,13 @@ const LoginContent = () => {
           return;
         }
 
-        // If no error and single provider, auto-redirect
-        if (!errorMsg && data.length === 1) {
-          localStorage.setItem(LAST_USED_KEY, data[0].id);
-          window.location.assign(loginUrl(data[0].id));
-          return;
-        }
-
+        // Always show the picker, even with a single provider, so the user
+        // explicitly chooses to sign in.
         setProviders(data);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [router, errorMsg]);
+  }, [router]);
 
   // Order: last-used first, rest after
   const ordered = useMemo(() => {

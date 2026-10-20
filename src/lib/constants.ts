@@ -43,6 +43,13 @@ export const EVENT_SOURCE = {
 } as const;
 
 // ── Webhook health ─────────────────────────────────────────────────
+
+/** Degradation window in milliseconds (24 hours). */
+export const DEGRADATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** A webhook is degraded when more than this fraction of events failed. */
+export const DEGRADATION_THRESHOLD = 0.3;
+
 /** Derived state of a webhook, computed from enabled + 24h failure rate. */
 export const WEBHOOK_STATUS = {
   ACTIVE: "active",

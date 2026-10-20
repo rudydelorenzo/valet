@@ -2,17 +2,13 @@ import { db } from "@/lib/db";
 import { webhooks, portainerInstances, webhookEvents } from "@/lib/db/schema";
 import { eq, desc, and, inArray, gte } from "drizzle-orm";
 import {
-  DEFAULT_DEBOUNCE_SECONDS,
-  EVENT_STATUS,
-  WEBHOOK_STATUS,
-  type WebhookStatus,
+    DEFAULT_DEBOUNCE_SECONDS, DEGRADATION_THRESHOLD, DEGRADATION_WINDOW_MS,
+    EVENT_STATUS,
+    WEBHOOK_STATUS,
+    type WebhookStatus,
 } from "@/lib/constants";
 import crypto from "node:crypto";
 
-/** Degradation window in milliseconds (24 hours). */
-const DEGRADATION_WINDOW_MS = 24 * 60 * 60 * 1000;
-/** A webhook is degraded when more than this fraction of events failed. */
-const DEGRADATION_THRESHOLD = 0.3;
 
 /** Compute the derived status from enabled + degraded. */
 export const computeWebhookStatus = (
