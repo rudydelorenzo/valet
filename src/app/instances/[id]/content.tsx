@@ -14,6 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useReachability } from "@/hooks/use-reachability";
+import { useStacks } from "@/hooks/use-stacks";
+import { PillBadge } from "@/components/ui/pill-badge";
+import { ReachabilityBadge } from "@/components/ReachabilityBadge";
+import { LogoBackButton } from "@/components/ui/logo-back-button";
+import { InstanceIcon } from "@/components/ui/instance-icon";
+import { RefreshCw } from "lucide-react";
 
 interface Instance {
   id: string;
@@ -24,12 +31,13 @@ interface Instance {
   createdAt: string;
 }
 
-interface Stack {
-  Id: number;
-  Name: string;
-  EndpointId: number;
-  Status: number;
-}
+const ENVIRONMENT_TYPES: Record<number, string> = {
+  1: "Docker",
+  2: "Swarm",
+  3: "Kubernetes",
+  4: "Azure",
+  5: "Edge",
+};
 
 const InstanceDetailContent = ({
   params,
@@ -39,13 +47,7 @@ const InstanceDetailContent = ({
   const { id } = use(params);
   const router = useRouter();
   const [instance, setInstance] = useState<Instance | null>(null);
-  const [stacks, setStacks] = useState<Stack[]>([]);
   const [loading, setLoading] = useState(true);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    ok: boolean;
-    message: string;
-  } | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -54,15 +56,24 @@ const InstanceDetailContent = ({
     insecureTls: false,
   });
   const [saving, setSaving] = useState(false);
+  const { stacks, environments, refresh: refreshData } = useStacks(id);
+  const [refreshing, setRefreshing] = useState(false);
+  const reachability = useReachability(instance ? [instance.id] : []);
+  const status = instance ? reachability[instance.id] : undefined;
+
+  const loadData = async () => {
+    setRefreshing(true);
+    try {
+      await refreshData();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/instances/${id}`).then((r) => r.json()),
-      fetch(`/api/instances/${id}/stacks`)
-        .then((r) => r.json())
-        .catch(() => []),
-    ])
-      .then(([inst, stks]) => {
+    fetch(`/api/instances/${id}`)
+      .then((r) => r.json())
+      .then((inst) => {
         setInstance(inst);
         setForm({
           name: inst.name,
@@ -70,18 +81,9 @@ const InstanceDetailContent = ({
           token: "",
           insecureTls: inst.insecureTls,
         });
-        setStacks(Array.isArray(stks) ? stks : []);
       })
       .finally(() => setLoading(false));
   }, [id]);
-
-  const handleTest = async () => {
-    setTesting(true);
-    setTestResult(null);
-    const res = await fetch(`/api/instances/${id}/test`, { method: "POST" });
-    setTestResult(await res.json());
-    setTesting(false);
-  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,12 +129,29 @@ const InstanceDetailContent = ({
   return (
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {instance.name}
-        </h1>
+        <LogoBackButton
+          href="/instances"
+          title="Back to instances"
+          logo={
+            <InstanceIcon
+              id={instance.id}
+              className="size-full object-cover"
+            />
+          }
+        >
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {instance.name}
+          </h1>
+          <ReachabilityBadge status={status} />
+        </LogoBackButton>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleTest} disabled={testing}>
-            {testing ? "Testing…" : "Test connection"}
+          <Button
+            variant="outline"
+            onClick={loadData}
+            disabled={refreshing}
+          >
+            <RefreshCw className={refreshing ? "animate-spin" : undefined} />
+            Refresh
           </Button>
           <Button variant="outline" onClick={() => setEditing(!editing)}>
             {editing ? "Cancel" : "Edit"}
@@ -142,18 +161,6 @@ const InstanceDetailContent = ({
           </Button>
         </div>
       </div>
-
-      {testResult && (
-        <p
-          className={`mb-4 rounded-md px-3 py-2 text-sm ${
-            testResult.ok
-              ? "bg-green-500/10 text-green-700 dark:text-green-400"
-              : "bg-destructive/10 text-destructive"
-          }`}
-        >
-          {testResult.message}
-        </p>
-      )}
 
       <Card className="mb-6">
         <CardContent>
@@ -233,6 +240,41 @@ const InstanceDetailContent = ({
         </Card>
       )}
 
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Environments</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {environments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No environments found (or connection failed).
+            </p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {environments.map((env) => (
+                <div
+                  key={env.Id}
+                  className="flex items-center gap-3 rounded-lg border p-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">{env.Name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {ENVIRONMENT_TYPES[env.Type] ?? `Type ${env.Type}`} · #{env.Id}
+                    </div>
+                  </div>
+                  <PillBadge
+                    color={env.Status === 1 ? "green" : "red"}
+                    dot
+                  >
+                    {env.Status === 1 ? "Up" : "Down"}
+                  </PillBadge>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Stacks</CardTitle>
@@ -248,7 +290,7 @@ const InstanceDetailContent = ({
                 <TableRow>
                   <TableHead>ID</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>Endpoint</TableHead>
+                  <TableHead>Environment</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -257,7 +299,9 @@ const InstanceDetailContent = ({
                   <TableRow key={s.Id}>
                     <TableCell className="font-mono text-xs">{s.Id}</TableCell>
                     <TableCell>{s.Name}</TableCell>
-                    <TableCell>{s.EndpointId}</TableCell>
+                    <TableCell>
+                      {s.environmentName ?? `#${s.EndpointId}`}
+                    </TableCell>
                     <TableCell>
                       {s.Status === 1 ? "Active" : `Status ${s.Status}`}
                     </TableCell>

@@ -1,6 +1,8 @@
 import {
   listWebhooksByUser,
   createWebhook,
+  getWebhookHealth,
+  computeWebhookStatus,
 } from "@/lib/db/webhooks";
 import { getPortainerInstance } from "@/lib/db/portainer-instances";
 import { requireAuth } from "@/lib/auth/guard";
@@ -8,7 +10,20 @@ import { requireAuth } from "@/lib/auth/guard";
 export const GET = async () => {
   const userId = await requireAuth();
   const rows = await listWebhooksByUser(userId);
-  return Response.json(rows);
+  const health = await getWebhookHealth(rows.map((w) => w.id));
+
+  return Response.json(
+    rows.map((w) => {
+      const h = health.get(w.id);
+      const degraded = h?.degraded ?? false;
+      return {
+        ...w,
+        status: computeWebhookStatus(w.enabled, degraded),
+        eventsTotal: h?.total ?? 0,
+        eventsFailed: h?.failed ?? 0,
+      };
+    }),
+  );
 };
 
 export const POST = async (request: Request) => {
@@ -20,14 +35,12 @@ export const POST = async (request: Request) => {
     portainerInstanceId,
     stackId,
     endpointId,
-    stackName,
     debounceSeconds,
   } = body as {
     name?: unknown;
     portainerInstanceId?: unknown;
     stackId?: unknown;
     endpointId?: unknown;
-    stackName?: unknown;
     debounceSeconds?: unknown;
   };
 
@@ -36,13 +49,12 @@ export const POST = async (request: Request) => {
     typeof name !== "string" || name.trim().length === 0 ||
     typeof portainerInstanceId !== "string" ||
     !Number.isInteger(stackId) || (stackId as number) < 0 ||
-    !Number.isInteger(endpointId) || (endpointId as number) < 0 ||
-    typeof stackName !== "string" || stackName.trim().length === 0
+    !Number.isInteger(endpointId) || (endpointId as number) < 0
   ) {
     return Response.json(
       {
         error:
-          "name (string), portainerInstanceId (string), stackId (integer), endpointId (integer), and stackName (string) are required",
+          "name (string), portainerInstanceId (string), stackId (integer), and endpointId (integer) are required",
       },
       { status: 400 },
     );
@@ -75,7 +87,6 @@ export const POST = async (request: Request) => {
     portainerInstanceId: portainerInstanceId as string,
     stackId: stackId as number,
     endpointId: endpointId as number,
-    stackName: (stackName as string).trim(),
     debounceSeconds: (debounceSeconds as number | undefined),
   });
 

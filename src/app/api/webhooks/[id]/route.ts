@@ -1,4 +1,10 @@
-import { getWebhook, updateWebhook, deleteWebhook } from "@/lib/db/webhooks";
+import {
+  getWebhook,
+  updateWebhook,
+  deleteWebhook,
+  getWebhookHealth,
+  computeWebhookStatus,
+} from "@/lib/db/webhooks";
 import { requireAuth } from "@/lib/auth/guard";
 
 export const GET = async (
@@ -13,7 +19,15 @@ export const GET = async (
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
-  return Response.json(webhook);
+  const health = await getWebhookHealth([id]);
+  const h = health.get(id);
+
+  return Response.json({
+    ...webhook,
+    status: computeWebhookStatus(webhook.enabled, h?.degraded ?? false),
+    eventsTotal: h?.total ?? 0,
+    eventsFailed: h?.failed ?? 0,
+  });
 };
 
 export const PATCH = async (

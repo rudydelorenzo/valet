@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { InstanceIcon } from "@/components/ui/instance-icon";
+import { ReachabilityBadge } from "@/components/ReachabilityBadge";
+import { useReachability } from "@/hooks/use-reachability";
 
 interface Instance {
   id: string;
@@ -77,6 +79,8 @@ const InstancesPage = () => {
     await fetch(`/api/instances/${id}`, { method: "DELETE" });
     load();
   };
+
+  const reachability = useReachability(instances.map((i) => i.id));
 
   if (loading) {
     return (
@@ -184,10 +188,13 @@ const InstancesPage = () => {
                       {inst.url}
                     </code>
                   </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    {inst.insecureTls && (
-                      <Badge variant="secondary">TLS skip</Badge>
-                    )}
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <ReachabilityBadge status={reachability[inst.id]} />
+                      {inst.insecureTls && (
+                        <Badge variant="secondary">TLS skip</Badge>
+                      )}
+                    </div>
                     <span className="text-xs text-muted-foreground">
                       Added {new Date(inst.createdAt).toLocaleDateString()}
                     </span>

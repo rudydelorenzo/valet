@@ -1,8 +1,28 @@
 import { db } from "@/lib/db";
-import { webhooks, portainerInstances } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
-import { DEFAULT_DEBOUNCE_SECONDS } from "@/lib/constants";
+import { webhooks, portainerInstances, webhookEvents } from "@/lib/db/schema";
+import { eq, desc, and, inArray, gte } from "drizzle-orm";
+import {
+  DEFAULT_DEBOUNCE_SECONDS,
+  EVENT_STATUS,
+  WEBHOOK_STATUS,
+  type WebhookStatus,
+} from "@/lib/constants";
 import crypto from "node:crypto";
+
+/** Degradation window in milliseconds (24 hours). */
+const DEGRADATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** A webhook is degraded when more than this fraction of events failed. */
+const DEGRADATION_THRESHOLD = 0.3;
+
+/** Compute the derived status from enabled + degraded. */
+export const computeWebhookStatus = (
+  enabled: boolean,
+  degraded: boolean,
+): WebhookStatus => {
+  if (!enabled) return WEBHOOK_STATUS.DISABLED;
+  if (degraded) return WEBHOOK_STATUS.DEGRADED;
+  return WEBHOOK_STATUS.ACTIVE;
+};
 
 // ── Read ──────────────────────────────────────────────────────────
 
@@ -14,6 +34,52 @@ export const getWebhookByToken = async (token: string) => {
     .where(eq(webhooks.token, token))
     .limit(1);
   return webhook ?? null;
+};
+
+/**
+ * Compute the 24h failure rate for the given webhooks.
+ * Returns a map of webhook ID → { total, failed, degraded }.
+ */
+export const getWebhookHealth = async (webhookIds: string[]) => {
+  const health = new Map<
+    string,
+    { total: number; failed: number; degraded: boolean }
+  >();
+
+  if (webhookIds.length === 0) return health;
+
+  const since = new Date(Date.now() - DEGRADATION_WINDOW_MS);
+
+  const events = await db
+    .select({
+      webhookId: webhookEvents.webhookId,
+      status: webhookEvents.status,
+    })
+    .from(webhookEvents)
+    .where(
+      and(
+        inArray(webhookEvents.webhookId, webhookIds),
+        gte(webhookEvents.createdAt, since),
+      ),
+    );
+
+  for (const evt of events) {
+    const entry = health.get(evt.webhookId) ?? {
+      total: 0,
+      failed: 0,
+      degraded: false,
+    };
+    entry.total++;
+    if (evt.status === EVENT_STATUS.ERROR) entry.failed++;
+    health.set(evt.webhookId, entry);
+  }
+
+  for (const entry of health.values()) {
+    entry.degraded =
+      entry.total > 0 && entry.failed / entry.total > DEGRADATION_THRESHOLD;
+  }
+
+  return health;
 };
 
 /**
@@ -30,7 +96,6 @@ export const getWebhook = async (id: string) => {
       portainerInstanceId: webhooks.portainerInstanceId,
       stackId: webhooks.stackId,
       endpointId: webhooks.endpointId,
-      stackName: webhooks.stackName,
       enabled: webhooks.enabled,
       debounceSeconds: webhooks.debounceSeconds,
       createdAt: webhooks.createdAt,
@@ -56,7 +121,6 @@ export const listWebhooksByUser = async (userId: string) => {
       portainerInstanceId: webhooks.portainerInstanceId,
       stackId: webhooks.stackId,
       endpointId: webhooks.endpointId,
-      stackName: webhooks.stackName,
       enabled: webhooks.enabled,
       debounceSeconds: webhooks.debounceSeconds,
       createdAt: webhooks.createdAt,
@@ -80,7 +144,6 @@ export const createWebhook = async (data: {
   portainerInstanceId: string;
   stackId: number;
   endpointId: number;
-  stackName: string;
   debounceSeconds?: number;
 }) => {
   const token = crypto.randomBytes(32).toString("base64url");

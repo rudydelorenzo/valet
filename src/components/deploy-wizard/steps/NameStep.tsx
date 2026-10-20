@@ -33,7 +33,6 @@ const NameStep = ({
           portainerInstanceId: instanceId,
           stackId: stack.Id,
           endpointId: stack.EndpointId,
-          stackName: stack.Name,
         }),
       });
       const data = await res.json();

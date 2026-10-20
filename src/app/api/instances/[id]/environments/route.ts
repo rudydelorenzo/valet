@@ -1,10 +1,10 @@
 import { db } from "@/lib/db";
 import { portainerInstances } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { testConnection } from "@/lib/portainer";
+import { listEnvironments } from "@/lib/portainer";
 import { requireAuth } from "@/lib/auth/guard";
 
-export const POST = async (
+export const GET = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) => {
@@ -21,11 +21,17 @@ export const POST = async (
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
-  const result = await testConnection(
-    instance.url,
-    instance.token,
-    instance.insecureTls,
-  );
-
-  return Response.json(result);
+  try {
+    const environments = await listEnvironments(
+      instance.url,
+      instance.token,
+      instance.insecureTls,
+    );
+    return Response.json(environments);
+  } catch (err) {
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Failed to list environments" },
+      { status: 502 },
+    );
+  }
 };

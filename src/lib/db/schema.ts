@@ -93,7 +93,6 @@ export const webhooks = sqliteTable("webhooks", {
     .references(() => portainerInstances.id, { onDelete: "cascade" }),
   stackId: integer("stack_id").notNull(),
   endpointId: integer("endpoint_id").notNull(),
-  stackName: text("stack_name").notNull(),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   debounceSeconds: integer("debounce_seconds").notNull().default(DEFAULT_DEBOUNCE_SECONDS),
   createdAt: integer("created_at", { mode: "timestamp_ms" })

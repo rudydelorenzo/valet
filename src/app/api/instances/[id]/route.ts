@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { portainerInstances } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth/guard";
+import { validateInstance } from "@/lib/portainer";
 
 export const GET = async (
   _request: Request,
@@ -38,6 +39,29 @@ export const PATCH = async (
   if (body.url !== undefined) updates.url = body.url;
   if (body.token !== undefined) updates.token = body.token;
   if (body.insecureTls !== undefined) updates.insecureTls = body.insecureTls;
+
+  // If URL or token changed, validate the new connection
+  if (updates.url || updates.token) {
+    const [current] = await db
+      .select()
+      .from(portainerInstances)
+      .where(and(eq(portainerInstances.id, id), eq(portainerInstances.userId, userId)))
+      .limit(1);
+
+    if (!current) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const validation = await validateInstance(
+      (updates.url as string) ?? current.url,
+      (updates.token as string) ?? current.token,
+      (updates.insecureTls as boolean) ?? current.insecureTls,
+    );
+
+    if (!validation.ok) {
+      return Response.json({ error: validation.error }, { status: 400 });
+    }
+  }
 
   const [updated] = await db
     .update(portainerInstances)

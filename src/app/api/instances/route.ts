@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { portainerInstances } from "@/lib/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { testConnection } from "@/lib/portainer";
+import { validateInstance } from "@/lib/portainer";
 import { requireAuth } from "@/lib/auth/guard";
 
 export const GET = async () => {
@@ -40,10 +40,10 @@ export const POST = async (request: Request) => {
     );
   }
 
-  // Test the connection before saving
-  const result = await testConnection(url, token, insecureTls ?? false);
-  if (!result.ok) {
-    return Response.json({ error: result.message }, { status: 400 });
+  // Verify URL points to Portainer and token works
+  const validation = await validateInstance(url, token, insecureTls ?? false);
+  if (!validation.ok) {
+    return Response.json({ error: validation.error }, { status: 400 });
   }
 
   const [instance] = await db

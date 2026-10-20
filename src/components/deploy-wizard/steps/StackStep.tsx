@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Layers, Loader, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useStacks } from "@/hooks/use-stacks";
 import type { Stack } from "../types";
 
 const StackStep = ({
@@ -15,24 +16,8 @@ const StackStep = ({
   onSelect: (stack: Stack) => void;
   onBack: () => void;
 }) => {
-  const [stacks, setStacks] = useState<Stack[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { stacks, loading, error } = useStacks(instanceId);
   const [selected, setSelected] = useState<Stack | null>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    setError("");
-    setSelected(null);
-    fetch(`/api/instances/${instanceId}/stacks`)
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to load stacks");
-        return r.json();
-      })
-      .then((data) => setStacks(Array.isArray(data) ? data : []))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [instanceId]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -84,7 +69,10 @@ const StackStep = ({
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium">{stack.Name}</div>
                   <div className="text-xs text-muted-foreground">
-                    Stack #{stack.Id} · Endpoint #{stack.EndpointId}
+                    Stack #{stack.Id}
+                    {stack.environmentName
+                      ? ` · ${stack.environmentName}`
+                      : ` · Environment #${stack.EndpointId}`}
                   </div>
                 </div>
                 {isSelected && (

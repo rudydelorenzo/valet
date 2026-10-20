@@ -13,6 +13,7 @@ interface Webhook {
   name: string;
   stackName: string;
   enabled: boolean;
+  status: string;
   instanceName: string | null;
 }
 
@@ -36,7 +37,8 @@ const Dashboard = () => {
     );
   }
 
-  const activeCount = webhooks.filter((w) => w.enabled).length;
+  const activeCount = webhooks.filter((w) => w.status === "active").length;
+  const degradedCount = webhooks.filter((w) => w.status === "degraded").length;
 
   return (
     <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
@@ -48,6 +50,14 @@ const Dashboard = () => {
             {webhooks.length} hook{webhooks.length !== 1 ? "s" : ""}{" "}
             <span className="mx-1 text-muted-foreground/40">·</span>{" "}
             {activeCount} active
+            {degradedCount > 0 && (
+              <>
+                <span className="mx-1 text-muted-foreground/40">·</span>{" "}
+                <span className="text-amber-700 dark:text-amber-400">
+                  {degradedCount} degraded
+                </span>
+              </>
+            )}
           </p>
         </div>
         <Button size="lg" onClick={() => setDialogOpen(true)}>

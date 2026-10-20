@@ -11,18 +11,24 @@ const InstanceIcon = ({
   className?: string;
 }) => {
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   if (failed) {
     return <Server className="size-4 text-muted-foreground" />;
   }
 
   return (
-    <img
-      src={`/api/instances/${id}/favicon`}
-      alt=""
-      className={className}
-      onError={() => setFailed(true)}
-    />
+    <>
+      {!loaded && <Server className="size-4 text-muted-foreground" />}
+      <img
+        src={`/api/instances/${id}/favicon`}
+        alt=""
+        className={className}
+        style={!loaded ? { position: "absolute", opacity: 0 } : undefined}
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+      />
+    </>
   );
 };
 

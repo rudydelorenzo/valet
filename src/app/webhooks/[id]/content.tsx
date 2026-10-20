@@ -4,8 +4,12 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { EventLog } from "@/components/EventLog";
+import { WebhookStatusBadge } from "@/components/WebhookStatusBadge";
+import { LogoBackButton } from "@/components/ui/logo-back-button";
+import { InstanceIcon } from "@/components/ui/instance-icon";
+import { useEnvironments } from "@/hooks/use-environments";
+import { useStacks } from "@/hooks/use-stacks";
 import { toast } from "sonner";
 
 interface Webhook {
@@ -15,11 +19,13 @@ interface Webhook {
   portainerInstanceId: string;
   stackId: number;
   endpointId: number;
-  stackName: string;
   enabled: boolean;
+  status: string;
   debounceSeconds: number;
   instanceName: string | null;
   createdAt: string;
+  eventsTotal?: number;
+  eventsFailed?: number;
 }
 
 const WebhookDetailContent = ({
@@ -33,6 +39,20 @@ const WebhookDetailContent = ({
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
   const [eventLogKey, setEventLogKey] = useState(0);
+
+  const { environments } = useEnvironments(
+    webhook?.portainerInstanceId ?? undefined,
+  );
+  const environmentName = webhook
+    ? environments.find((e) => e.Id === webhook.endpointId)?.Name
+    : undefined;
+
+  const { stacks } = useStacks(
+    webhook?.portainerInstanceId ?? undefined,
+  );
+  const stackName = webhook
+    ? stacks.find((s) => s.Id === webhook.stackId)?.Name
+    : undefined;
 
   useEffect(() => {
     fetch(`/api/webhooks/${id}`)
@@ -106,14 +126,21 @@ const WebhookDetailContent = ({
   return (
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <div>
+        <LogoBackButton
+          href="/webhooks"
+          title="Back to deployment hooks"
+          logo={
+            <InstanceIcon
+              id={webhook.portainerInstanceId}
+              className="size-full object-cover"
+            />
+          }
+        >
           <h1 className="text-2xl font-semibold tracking-tight">
             {webhook.name}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {webhook.instanceName} → {webhook.stackName}
-          </p>
-        </div>
+          <WebhookStatusBadge status={webhook.status} />
+        </LogoBackButton>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleToggle}>
             {webhook.enabled ? "Disable" : "Enable"}
@@ -149,31 +176,36 @@ const WebhookDetailContent = ({
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         <Card>
           <CardContent className="text-sm">
-            <span className="text-muted-foreground">Stack ID:</span>{" "}
-            {webhook.stackId}
+            <span className="text-muted-foreground">Instance:</span>{" "}
+            {webhook.instanceName ?? "Unknown"}
           </CardContent>
         </Card>
         <Card>
           <CardContent className="text-sm">
-            <span className="text-muted-foreground">Endpoint ID:</span>{" "}
-            {webhook.endpointId}
+            <span className="text-muted-foreground">Stack:</span>{" "}
+            <code>{stackName ?? "Loading…"}</code>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="text-sm">
-            <span className="text-muted-foreground">Debounce:</span>{" "}
-            {webhook.debounceSeconds}s
+            <span className="text-muted-foreground">Environment:</span>{" "}
+            <code>{environmentName ?? "Loading…"}</code>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="text-sm">
+          <CardContent className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Status:</span>{" "}
-            <Badge variant={webhook.enabled ? "default" : "secondary"}>
-              {webhook.enabled ? "Active" : "Disabled"}
-            </Badge>
+            <WebhookStatusBadge status={webhook.status} />
           </CardContent>
         </Card>
       </div>
+
+      {webhook.status === "degraded" && (
+        <p className="mb-6 rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+          {webhook.eventsFailed}/{webhook.eventsTotal} events failed in the
+          last 24h — this hook may be misbehaving.
+        </p>
+      )}
 
       <div className="mb-8 flex items-center gap-3">
         <Button onClick={handleTrigger} disabled={triggering}>

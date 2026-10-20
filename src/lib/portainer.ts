@@ -9,6 +9,14 @@ export interface PortainerStack {
   Env: Array<{ name: string; value: string }>;
 }
 
+export interface PortainerEnvironment {
+  Id: number;
+  Name: string;
+  Type: number;
+  URL: string;
+  Status: number;
+}
+
 // Shared undici agent — reused across requests to avoid per-request TLS handshakes.
 let _insecureAgent: Agent | undefined;
 const getDispatcher = (insecureTls: boolean): Dispatcher | undefined => {
@@ -46,6 +54,60 @@ const portainerFetch = async <T>(
   return res.json() as Promise<T>;
 };
 
+/** Lightweight health check — pings /api/status and returns version if reachable. */
+export const pingInstance = async (
+  baseUrl: string,
+  token: string,
+  insecureTls: boolean,
+): Promise<{ reachable: boolean; version?: string }> => {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+
+    const url = `${baseUrl.replace(/\/$/, "")}/api/status`;
+    const res = await globalThis.fetch(url, {
+      signal: controller.signal,
+      headers: { "X-API-Key": token },
+      ...(getDispatcher(insecureTls)
+        ? { dispatcher: getDispatcher(insecureTls) }
+        : {}),
+    } as Parameters<typeof globalThis.fetch>[1]);
+
+    clearTimeout(timeout);
+
+    if (!res.ok) return { reachable: false };
+
+    const data = (await res.json()) as { Version?: string };
+    return { reachable: true, version: data.Version };
+  } catch {
+    return { reachable: false };
+  }
+};
+
+/**
+ * Validate that a URL points to a Portainer instance and the token works.
+ * Returns { ok: true, version } on success, or { ok: false, error } on failure.
+ */
+export const validateInstance = async (
+  baseUrl: string,
+  token: string,
+  insecureTls: boolean,
+): Promise<{ ok: true; version?: string } | { ok: false; error: string }> => {
+  // 1. Verify the URL points to Portainer
+  const ping = await pingInstance(baseUrl, token, insecureTls);
+  if (!ping.reachable) {
+    return { ok: false, error: "Could not find a Portainer instance at this URL" };
+  }
+
+  // 2. Verify the token has access
+  const test = await testConnection(baseUrl, token, insecureTls);
+  if (!test.ok) {
+    return { ok: false, error: test.message };
+  }
+
+  return { ok: true, version: ping.version };
+};
+
 /** Test that we can reach Portainer and list environments. */
 export const testConnection = async (
   baseUrl: string,
@@ -72,6 +134,15 @@ export const listStacks = async (
   insecureTls: boolean,
 ): Promise<PortainerStack[]> => {
   return portainerFetch<PortainerStack[]>(baseUrl, token, "/api/stacks", insecureTls);
+};
+
+/** List environments (endpoints) registered in this Portainer instance. */
+export const listEnvironments = async (
+  baseUrl: string,
+  token: string,
+  insecureTls: boolean,
+): Promise<PortainerEnvironment[]> => {
+  return portainerFetch<PortainerEnvironment[]>(baseUrl, token, "/api/endpoints", insecureTls);
 };
 
 /**

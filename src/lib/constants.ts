@@ -41,3 +41,14 @@ export const EVENT_SOURCE = {
   WEBHOOK: "webhook",
   MANUAL: "manual",
 } as const;
+
+// ── Webhook health ─────────────────────────────────────────────────
+/** Derived state of a webhook, computed from enabled + 24h failure rate. */
+export const WEBHOOK_STATUS = {
+  ACTIVE: "active",
+  DISABLED: "disabled",
+  DEGRADED: "degraded",
+} as const;
+
+export type WebhookStatus =
+  (typeof WEBHOOK_STATUS)[keyof typeof WEBHOOK_STATUS];
