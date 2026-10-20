@@ -1,8 +1,8 @@
 # Valet
 
-**CI-triggered stack redeploys for Portainer Community Edition.**
+**Programmatically trigger stack redeploys for Portainer.**
 
-Push a new image from CI, hit a webhook, and your Portainer stack is pulling and running it within seconds — no manual steps, no Business Edition, no drift.
+Push a new image from CI, hit a webhook, and your Portainer stack is pulling and redeploying within seconds.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org)
@@ -104,16 +104,9 @@ If you're already running Portainer, you can deploy Valet as just another stack 
 
 4. **Deploy the stack.**
 
-<details>
-<summary>Setup for docker compose</summary>
-
-</details>
-
 Notes:
 
-- **TLS** — put a reverse proxy (Caddy, Traefik, nginx) in front of port 3000 and serve Valet over `https://`; `APP_BASE_URL` must match the public URL exactly.
-- **Persistence** — the database lives on the `valet-data` volume and is created and migrated automatically on first start. Back up that volume to back up Valet.
-- **Reaching Portainer** — Valet talks to Portainer over its API as a client. Deployed on the same host as Portainer, `host.docker.internal` or a shared network works; for self-signed certs (e.g. Portainer's `:9443`), enable the instance's *insecure TLS* option when adding it.
+Valet talks to Portainer over its API as a client. Deployed on the same host as Portainer, `host.docker.internal` or a shared network works; for self-signed certs (e.g. Portainer's `:9443`), enable the instance's *insecure TLS* option when adding it.
 
 ### 2. First-time setup
 
