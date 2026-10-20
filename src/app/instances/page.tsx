@@ -8,12 +8,11 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { InstanceIcon } from "@/components/instance-icon";
+import { InstanceIcon } from "@/components/ui/instance-icon";
 
 interface Instance {
   id: string;
@@ -167,7 +166,7 @@ const InstancesPage = () => {
           No instances configured yet.
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3">
           {instances.map((inst) => (
             <Link
               key={inst.id}
@@ -175,23 +174,17 @@ const InstancesPage = () => {
               className="group block"
             >
               <Card className="transition-shadow hover:shadow-md">
-                <CardHeader>
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
-                      <InstanceIcon id={inst.id} />
-                    </div>
-                    <div className="min-w-0">
-                      <CardTitle className="truncate text-sm">
-                        {inst.name}
-                      </CardTitle>
-                      <CardDescription className="truncate">
-                        {inst.url}
-                      </CardDescription>
-                    </div>
+                <CardContent className="flex items-center gap-4">
+                  <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+                    <InstanceIcon id={inst.id} />
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 flex-col justify-center">
+                    <div className="text-base font-medium">{inst.name}</div>
+                    <code className="text-xs text-muted-foreground">
+                      {inst.url}
+                    </code>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
                     {inst.insecureTls && (
                       <Badge variant="secondary">TLS skip</Badge>
                     )}

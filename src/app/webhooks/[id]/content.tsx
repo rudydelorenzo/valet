@@ -148,25 +148,25 @@ const WebhookDetailContent = ({
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         <Card>
-          <CardContent className="pt-5 text-sm">
+          <CardContent className="text-sm">
             <span className="text-muted-foreground">Stack ID:</span>{" "}
             {webhook.stackId}
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-5 text-sm">
+          <CardContent className="text-sm">
             <span className="text-muted-foreground">Endpoint ID:</span>{" "}
             {webhook.endpointId}
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-5 text-sm">
+          <CardContent className="text-sm">
             <span className="text-muted-foreground">Debounce:</span>{" "}
             {webhook.debounceSeconds}s
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-5 text-sm">
+          <CardContent className="text-sm">
             <span className="text-muted-foreground">Status:</span>{" "}
             <Badge variant={webhook.enabled ? "default" : "secondary"}>
               {webhook.enabled ? "Active" : "Disabled"}

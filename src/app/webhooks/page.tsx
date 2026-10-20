@@ -62,7 +62,7 @@ const WebhooksPage = () => {
           {webhooks.map((w) => (
             <Link key={w.id} href={`/webhooks/${w.id}`} className="group block">
               <Card className="transition-shadow hover:shadow-md">
-                <CardContent className="pt-5">
+                <CardContent>
                   <div className="mb-1 flex items-center gap-2">
                     <span className="font-medium">{w.name}</span>
                     {!w.enabled && (

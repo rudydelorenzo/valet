@@ -156,7 +156,7 @@ const InstanceDetailContent = ({
       )}
 
       <Card className="mb-6">
-        <CardContent className="pt-5">
+        <CardContent>
           <div className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
               <span className="text-muted-foreground">URL:</span> {instance.url}
