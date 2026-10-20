@@ -36,6 +36,31 @@ const STEP_ORDER: StepKey[] = [
   "done",
 ];
 
+// ── State defaults ──────────────────────────────────────────────────
+
+/** Initial values for every piece of wizard state. */
+const DEFAULTS: {
+  step: StepKey;
+  instances: Instance[];
+  selectedInstance: Instance | null;
+  selectedStack: Stack | null;
+  createdWebhook: CreatedWebhook | null;
+  direction: "left" | "right";
+  displayedStep: StepKey;
+  isSliding: boolean;
+  height: number | "auto";
+} = {
+  step: "instance",
+  instances: [],
+  selectedInstance: null,
+  selectedStack: null,
+  createdWebhook: null,
+  direction: "right",
+  displayedStep: "instance",
+  isSliding: false,
+  height: "auto",
+};
+
 // ── Props ──────────────────────────────────────────────────────────
 
 interface DeploymentDialogProps {
@@ -52,23 +77,43 @@ const DeploymentDialog = ({
   onCreated,
 }: DeploymentDialogProps) => {
   // State
-  const [step, setStep] = useState<StepKey>("instance");
-  const [instances, setInstances] = useState<Instance[]>([]);
+  const [step, setStep] = useState<StepKey>(DEFAULTS.step);
+  const [instances, setInstances] = useState<Instance[]>(DEFAULTS.instances);
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(
-    null,
+    DEFAULTS.selectedInstance,
   );
-  const [selectedStack, setSelectedStack] = useState<Stack | null>(null);
+  const [selectedStack, setSelectedStack] = useState<Stack | null>(
+    DEFAULTS.selectedStack,
+  );
   const [createdWebhook, setCreatedWebhook] = useState<CreatedWebhook | null>(
-    null,
+    DEFAULTS.createdWebhook,
   );
 
   // Transition state
-  const [direction, setDirection] = useState<"left" | "right">("right");
-  const [displayedStep, setDisplayedStep] = useState<StepKey>("instance");
-  const [isSliding, setIsSliding] = useState(false);
-  const [height, setHeight] = useState<number | "auto">("auto");
+  const [direction, setDirection] = useState<"left" | "right">(
+    DEFAULTS.direction,
+  );
+  const [displayedStep, setDisplayedStep] = useState<StepKey>(
+    DEFAULTS.displayedStep,
+  );
+  const [isSliding, setIsSliding] = useState(DEFAULTS.isSliding);
+  const [height, setHeight] = useState<number | "auto">(DEFAULTS.height);
   const containerRef = useRef<HTMLDivElement>(null);
   const firstRender = useRef(true);
+
+  // Put all wizard state back to its initial values.
+  // `instances` is intentionally left alone: it's refetched when the
+  // dialog opens, so clearing it would just cause a loading flash.
+  const reset = () => {
+    setStep(DEFAULTS.step);
+    setDirection(DEFAULTS.direction);
+    setDisplayedStep(DEFAULTS.displayedStep);
+    setSelectedInstance(DEFAULTS.selectedInstance);
+    setSelectedStack(DEFAULTS.selectedStack);
+    setCreatedWebhook(DEFAULTS.createdWebhook);
+    setIsSliding(DEFAULTS.isSliding);
+    setHeight(DEFAULTS.height);
+  };
 
   // Measure current content height
   const measure = useCallback(() => {
@@ -148,16 +193,21 @@ const DeploymentDialog = ({
     }
   }, [open, loadInstances]);
 
-  // Reset everything when dialog closes
+  // Reset everything when the dialog closes — adjust state during render
+  // when the open prop changes (React's sanctioned pattern for resetting
+  // state on a prop change, instead of cascading setState in an effect).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (!open) {
+      reset();
+    }
+  }
+
+  // Re-arm the first-render measurement when the dialog closes.
+  // Ref mutation lives in an effect; no state updates here.
   useEffect(() => {
     if (!open) {
-      setStep("instance");
-      setDisplayedStep("instance");
-      setSelectedInstance(null);
-      setSelectedStack(null);
-      setCreatedWebhook(null);
-      setIsSliding(false);
-      setHeight("auto");
       firstRender.current = true;
     }
   }, [open]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const LiveToggle = ({
   live: controlledLive,
@@ -11,16 +11,23 @@ const LiveToggle = ({
 }) => {
   const [prevLive, setPrevLive] = useState(controlledLive);
   const [ping, setPing] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [pingNonce, setPingNonce] = useState(0);
 
+  // Detect the toggle and trigger the ping ring by adjusting state
+  // during render (React's sanctioned pattern for prop-derived state).
+  if (controlledLive !== prevLive) {
+    setPrevLive(controlledLive);
+    setPing(true);
+    setPingNonce((n) => n + 1);
+  }
+
+  // Clear the ping ring after the animation; restarts on every toggle
+  // because pingNonce changes.
   useEffect(() => {
-    if (controlledLive !== prevLive) {
-      setPrevLive(controlledLive);
-      setPing(true);
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => setPing(false), 400);
-    }
-  }, [controlledLive, prevLive]);
+    if (!ping) return;
+    const timeout = setTimeout(() => setPing(false), 400);
+    return () => clearTimeout(timeout);
+  }, [ping, pingNonce]);
 
   return (
     <button

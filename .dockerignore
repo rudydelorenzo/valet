@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.idea
+data
+docs
+*.tsbuildinfo
+.env*
+Dockerfile
+docker-compose.yml
+.github

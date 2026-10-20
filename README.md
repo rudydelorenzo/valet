@@ -73,7 +73,7 @@ sequenceDiagram
 If you're already running Portainer, you can deploy Valet as just another stack on it:
 
 1. In Portainer, go to **Stacks → Add stack** and name it `valet`.
-2. Paste this into the web editor:
+2. You can use this compose definition as a starting point:
 
    ```yaml
    services:
@@ -91,6 +91,8 @@ If you're already running Portainer, you can deploy Valet as just another stack 
    volumes:
      valet-data:
    ```
+> [!TIP] 
+> A ready-made sample lives at [`docker-compose.yml`](docker-compose.yml) in the repo root.
 
 3. Set the environment variables — either inline above, or under the stack's **Environment variables** section (Portainer keeps those with the stack):
    - `APP_BASE_URL` — your public URL, will be used to compute hook and auth URLs
@@ -104,24 +106,6 @@ If you're already running Portainer, you can deploy Valet as just another stack 
 
 <details>
 <summary>Setup for docker compose</summary>
-
-```yaml
-services:
-  valet:
-    image: rdelorenzo/valet:latest
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      APP_BASE_URL: https://valet.example.com
-      AUTH_SECRET: ${AUTH_SECRET}
-    volumes:
-      - ./data:/app/data # SQLite DB persists here
-```
-
-```bash
-AUTH_SECRET=$(openssl rand -base64 32) docker compose up -d
-```
 
 </details>
 
@@ -188,6 +172,7 @@ npm run dev        # http://localhost:3000
 | `npm run build` | Production build |
 | `npm start` | Serve the production build |
 | `npm run lint` | ESLint |
+| `npm run typecheck` | Generate route types + TypeScript check |
 
 Notes for contributors:
 

@@ -1,0 +1,23 @@
+# Sample Valet deployment — see README.md "Getting Started".
+#
+#   1. Generate a session secret:   openssl rand -base64 32
+#   2. Export it (or put it in a .env file next to this one):
+#        export AUTH_SECRET=<your-secret>
+#   3. docker compose up -d
+#
+# Images are published for linux/amd64 and linux/arm64 on
+# Docker Hub (rdelorenzo/valet) and GHCR (ghcr.io/rudydelorenzo/valet).
+
+services:
+  valet:
+    image: rdelorenzo/valet:latest
+    # GHCR alternative:
+    # image: ghcr.io/rudydelorenzo/valet:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      APP_BASE_URL: https://valet.example.com
+      AUTH_SECRET: ${AUTH_SECRET}
+    volumes:
+      - ./data:/app/data # SQLite DB persists here
