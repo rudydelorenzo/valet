@@ -6,23 +6,34 @@ import {
   computeWebhookStatus,
 } from "@/lib/db/webhooks";
 import { requireAuth } from "@/lib/auth/guard";
+import { json, parseBody } from "@/lib/http";
+import { WebhookDetailSchema } from "@/types";
+import {
+  ApiErrorSchema,
+  OkSchema,
+  UpdateWebhookSchema,
+  type ApiError,
+} from "@/types/api";
+import { NextResponse } from "next/server";
+import type { WebhookDetail } from "@/types";
 
 export const GET = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) => {
+): Promise<NextResponse<WebhookDetail | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;
 
   const webhook = await getWebhook(id);
   if (!webhook || webhook.userId !== userId) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return json(ApiErrorSchema, { error: "Not found" }, { status: 404 });
   }
 
   const health = await getWebhookHealth([id]);
   const h = health.get(id);
 
-  return Response.json({
+  // token is intentional here — the deploy URL the user copies embeds it
+  return json(WebhookDetailSchema, {
     ...webhook,
     status: computeWebhookStatus(webhook.enabled, h?.degraded ?? false),
     eventsTotal: h?.total ?? 0,
@@ -33,65 +44,36 @@ export const GET = async (
 export const PATCH = async (
   request: Request,
   { params }: { params: Promise<{ id: string }> },
-) => {
+): Promise<NextResponse<{ ok: boolean } | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;
 
   const webhook = await getWebhook(id);
   if (!webhook || webhook.userId !== userId) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return json(ApiErrorSchema, { error: "Not found" }, { status: 404 });
   }
 
-  const body = await request.json();
-  const updates: { name?: string; enabled?: boolean; debounceSeconds?: number } = {};
+  const body = await parseBody(request, UpdateWebhookSchema);
+  if (body instanceof NextResponse) return body;
 
-  if (body.name !== undefined) {
-    if (typeof body.name !== "string" || body.name.trim().length === 0) {
-      return Response.json({ error: "name must be a non-empty string" }, { status: 400 });
-    }
-    updates.name = body.name.trim();
-  }
+  await updateWebhook(id, body);
 
-  if (body.enabled !== undefined) {
-    if (typeof body.enabled !== "boolean") {
-      return Response.json({ error: "enabled must be a boolean" }, { status: 400 });
-    }
-    updates.enabled = body.enabled;
-  }
-
-  if (body.debounceSeconds !== undefined) {
-    const val = body.debounceSeconds;
-    if (!Number.isInteger(val) || val < 0 || val > 86400) {
-      return Response.json(
-        { error: "debounceSeconds must be an integer between 0 and 86400" },
-        { status: 400 },
-      );
-    }
-    updates.debounceSeconds = val;
-  }
-
-  if (Object.keys(updates).length === 0) {
-    return Response.json({ error: "No valid fields to update" }, { status: 400 });
-  }
-
-  await updateWebhook(id, updates);
-
-  return Response.json({ ok: true });
+  return json(OkSchema, { ok: true });
 };
 
 export const DELETE = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) => {
+): Promise<NextResponse<{ ok: boolean } | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;
 
   const webhook = await getWebhook(id);
   if (!webhook || webhook.userId !== userId) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return json(ApiErrorSchema, { error: "Not found" }, { status: 404 });
   }
 
   await deleteWebhook(id);
 
-  return Response.json({ ok: true });
+  return json(OkSchema, { ok: true });
 };

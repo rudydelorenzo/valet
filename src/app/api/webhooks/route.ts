@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   listWebhooksByUser,
   createWebhook,
@@ -6,13 +7,25 @@ import {
 } from "@/lib/db/webhooks";
 import { getPortainerInstance } from "@/lib/db/portainer-instances";
 import { requireAuth } from "@/lib/auth/guard";
+import { json, parseBody } from "@/lib/http";
+import { CreatedWebhookSchema, WebhookSchema } from "@/types";
+import {
+  ApiErrorSchema,
+  CreateWebhookSchema,
+  type ApiError,
+} from "@/types/api";
+import { NextResponse } from "next/server";
+import type { CreatedWebhook, Webhook } from "@/types";
 
-export const GET = async () => {
+const WebhooksSchema = z.array(WebhookSchema);
+
+export const GET = async (): Promise<NextResponse<Webhook[]>> => {
   const userId = await requireAuth();
   const rows = await listWebhooksByUser(userId);
   const health = await getWebhookHealth(rows.map((w) => w.id));
 
-  return Response.json(
+  return json(
+    WebhooksSchema,
     rows.map((w) => {
       const h = health.get(w.id);
       const degraded = h?.degraded ?? false;
@@ -26,69 +39,31 @@ export const GET = async () => {
   );
 };
 
-export const POST = async (request: Request) => {
+export const POST = async (
+  request: Request,
+): Promise<NextResponse<CreatedWebhook | ApiError>> => {
   const userId = await requireAuth();
 
-  const body = await request.json();
-  const {
+  const body = await parseBody(request, CreateWebhookSchema);
+  if (body instanceof NextResponse) return body;
+  const { name, portainerInstanceId, stackId, endpointId, debounceSeconds } = body;
+
+  // Verify the instance belongs to this user
+  const instance = await getPortainerInstance(portainerInstanceId);
+
+  if (!instance || instance.userId !== userId) {
+    return json(ApiErrorSchema, { error: "Instance not found" }, { status: 404 });
+  }
+
+  const webhook = await createWebhook({
+    userId,
     name,
     portainerInstanceId,
     stackId,
     endpointId,
     debounceSeconds,
-  } = body as {
-    name?: unknown;
-    portainerInstanceId?: unknown;
-    stackId?: unknown;
-    endpointId?: unknown;
-    debounceSeconds?: unknown;
-  };
-
-  // Validate required fields
-  if (
-    typeof name !== "string" || name.trim().length === 0 ||
-    typeof portainerInstanceId !== "string" ||
-    !Number.isInteger(stackId) || (stackId as number) < 0 ||
-    !Number.isInteger(endpointId) || (endpointId as number) < 0
-  ) {
-    return Response.json(
-      {
-        error:
-          "name (string), portainerInstanceId (string), stackId (integer), and endpointId (integer) are required",
-      },
-      { status: 400 },
-    );
-  }
-
-  // Validate optional debounceSeconds
-  if (
-    debounceSeconds !== undefined &&
-    (!Number.isInteger(debounceSeconds) || (debounceSeconds as number) < 0 || (debounceSeconds as number) > 86400)
-  ) {
-    return Response.json(
-      { error: "debounceSeconds must be an integer between 0 and 86400" },
-      { status: 400 },
-    );
-  }
-
-  // Verify the instance belongs to this user
-  const instance = await getPortainerInstance(portainerInstanceId as string);
-
-  if (!instance || instance.userId !== userId) {
-    return Response.json(
-      { error: "Instance not found" },
-      { status: 404 },
-    );
-  }
-
-  const webhook = await createWebhook({
-    userId,
-    name: (name as string).trim(),
-    portainerInstanceId: portainerInstanceId as string,
-    stackId: stackId as number,
-    endpointId: endpointId as number,
-    debounceSeconds: (debounceSeconds as number | undefined),
   });
 
-  return Response.json(webhook, { status: 201 });
+  // token is intentional here — the caller needs the deploy URL
+  return json(CreatedWebhookSchema, webhook, { status: 201 });
 };

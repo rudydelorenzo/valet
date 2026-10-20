@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { portainerInstances, type PortainerInstance } from "@/lib/db/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
-import type { Instance } from "./types";
+import type { Instance } from "@/types";
 
 // ── Public shape ───────────────────────────────────────────────────
 

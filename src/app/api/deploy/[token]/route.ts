@@ -5,6 +5,14 @@ import { getPortainerInstance } from "@/lib/db/portainer-instances";
 import { getStack } from "@/lib/portainer";
 import { getDeployUrl, getStatusUrl, getEventUrl } from "@/lib/webhook-urls";
 import { ensureWorker } from "@/lib/worker";
+import { json } from "@/lib/http";
+import {
+  ApiErrorSchema,
+  DeployReceiptSchema,
+  type ApiError,
+  type DeployReceipt,
+} from "@/types/api";
+import type { NextResponse } from "next/server";
 
 /**
  * POST — inbound webhook receiver.
@@ -15,26 +23,23 @@ import { ensureWorker } from "@/lib/worker";
 export const POST = async (
   request: Request,
   { params }: { params: Promise<{ token: string }> },
-) => {
+): Promise<NextResponse<DeployReceipt | ApiError>> => {
   const { token } = await params;
 
   const webhook = await getWebhookByToken(token);
 
   if (!webhook) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return json(ApiErrorSchema, { error: "Not found" }, { status: 404 });
   }
 
   if (!webhook.enabled) {
-    return Response.json({ error: "Webhook is disabled" }, { status: 403 });
+    return json(ApiErrorSchema, { error: "Webhook is disabled" }, { status: 403 });
   }
 
   // Pre-flight healthcheck — fail fast if the stack is unreachable
   const instance = await getPortainerInstance(webhook.portainerInstanceId);
   if (!instance) {
-    return Response.json(
-      { error: "Instance not found" },
-      { status: 424 },
-    );
+    return json(ApiErrorSchema, { error: "Instance not found" }, { status: 424 });
   }
 
   const stack = await getStack(
@@ -45,7 +50,8 @@ export const POST = async (
     webhook.endpointId,
   );
   if (!stack) {
-    return Response.json(
+    return json(
+      ApiErrorSchema,
       { error: "Stack not found — it may have been deleted" },
       { status: 424 },
     );
@@ -56,7 +62,8 @@ export const POST = async (
   ensureWorker();
 
   const origin = new URL(request.url).origin;
-  return Response.json(
+  return json(
+    DeployReceiptSchema,
     {
       received: true,
       eventId: event.id,

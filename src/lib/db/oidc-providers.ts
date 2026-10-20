@@ -3,7 +3,7 @@ import { oidcProviders, type OidcProvider as OidcProviderRow } from "@/lib/db/sc
 import { eq, desc } from "drizzle-orm";
 import { DEFAULT_OIDC_SCOPES } from "@/lib/constants";
 import { normalizeScopes } from "@/lib/oidc-scopes";
-import type { OidcProvider } from "./types";
+import type { OidcProvider } from "@/types";
 
 // ── Public shape ───────────────────────────────────────────────────
 

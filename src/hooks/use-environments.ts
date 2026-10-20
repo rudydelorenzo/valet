@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import type { Environment } from "@/lib/db/types";
+import type { Environment } from "@/types";
 
 /**
  * Fetches and manages Portainer environments for an instance.

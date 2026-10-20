@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWebhookByToken } from "@/lib/db/webhooks";
 import { getWebhookEvent } from "@/lib/db/webhook-events";
+import { json } from "@/lib/http";
+import {
+  ApiErrorSchema,
+  DeployStatusSchema,
+  type ApiError,
+  type DeployStatus,
+} from "@/types/api";
 
 /**
  * GET /api/deploy/[token]/status/[eventId]
@@ -19,23 +26,18 @@ import { getWebhookEvent } from "@/lib/db/webhook-events";
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ token: string; eventId: string }> },
-) {
+): Promise<NextResponse<DeployStatus | ApiError | string>> {
   const { token, eventId } = await params;
 
   const webhook = await getWebhookByToken(token);
   if (!webhook) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return json(ApiErrorSchema, { error: "Not found" }, { status: 404 });
   }
 
   const event = await getWebhookEvent(eventId, webhook.id);
   if (!event) {
-    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    return json(ApiErrorSchema, { error: "Event not found" }, { status: 404 });
   }
-
-  const isPlainText = request.headers.get("accept")?.includes("text/plain");
-  const body = isPlainText
-    ? event.status
-    : { status: event.status, message: event.message ?? undefined };
 
   const statusCode =
     event.status === "success"
@@ -44,11 +46,23 @@ export async function GET(
         ? 502
         : 202; // queued or running
 
-  return new NextResponse(isPlainText ? event.status : JSON.stringify(body), {
-    status: statusCode,
-    headers: {
-      "Content-Type": isPlainText ? "text/plain; charset=utf-8" : "application/json",
-      "Cache-Control": "no-store",
+  const isPlainText = request.headers.get("accept")?.includes("text/plain");
+  if (isPlainText) {
+    return new NextResponse(event.status, {
+      status: statusCode,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  return json(
+    DeployStatusSchema,
+    { status: event.status, message: event.message ?? undefined },
+    {
+      status: statusCode,
+      headers: { "Cache-Control": "no-store" },
     },
-  });
+  );
 }

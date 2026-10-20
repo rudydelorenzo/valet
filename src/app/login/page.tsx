@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { loginUrl } from "@/lib/urls";
 import { LogIn, Clock } from "lucide-react";
-import type { ProviderSummary } from "@/lib/db/types";
+import type { ProviderSummary } from "@/types";
 
 const LAST_USED_KEY = "valet:lastProviderId";
 

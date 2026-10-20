@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import {
   createProvider,
   hasAnyProvider,
@@ -9,8 +8,15 @@ import { cookies } from "next/headers";
 import { discover } from "@/lib/auth/oidc";
 import { getSecret } from "@/lib/auth/secret";
 import { SETUP_COOKIE, JWT_ISSUER } from "@/lib/constants";
-import type { OidcProvider } from "@/lib/db/types";
-import type { ApiError } from "@/types/api";
+import { json, parseBody } from "@/lib/http";
+import { OidcProviderSchema } from "@/types";
+import {
+  ApiErrorSchema,
+  CreateProviderSchema,
+  type ApiError,
+} from "@/types/api";
+import { NextResponse } from "next/server";
+import type { OidcProvider } from "@/types";
 
 /**
  * POST — add the first OIDC provider during initial setup.
@@ -26,16 +32,14 @@ export const POST = async (
   const store = await cookies();
   const setupToken = store.get(SETUP_COOKIE)?.value;
   if (!setupToken) {
-    return NextResponse.json(
-      { error: "Setup token required" },
-      { status: 401 },
-    );
+    return json(ApiErrorSchema, { error: "Setup token required" }, { status: 401 });
   }
 
   try {
     await jwtVerify(setupToken, getSecret(), { issuer: JWT_ISSUER });
   } catch {
-    return NextResponse.json(
+    return json(
+      ApiErrorSchema,
       { error: "Invalid or expired setup token" },
       { status: 401 },
     );
@@ -43,36 +47,24 @@ export const POST = async (
 
   // 2. Ensure no providers exist yet
   if (await hasAnyProvider()) {
-    return NextResponse.json(
+    return json(
+      ApiErrorSchema,
       { error: "An identity provider is already configured" },
       { status: 409 },
     );
   }
 
   // 3. Parse and validate body
-  const body = (await request.json()) as {
-    name?: string;
-    issuer?: string;
-    clientId?: string;
-    clientSecret?: string;
-    scopes?: string;
-    skipEmailVerification?: boolean;
-  };
-
-  const { name, issuer, clientId, clientSecret, scopes, skipEmailVerification } = body;
-
-  if (!name || !issuer || !clientId || !clientSecret) {
-    return NextResponse.json(
-      { error: "name, issuer, clientId, and clientSecret are required" },
-      { status: 400 },
-    );
-  }
+  const parsed = await parseBody(request, CreateProviderSchema);
+  if (parsed instanceof NextResponse) return parsed;
+  const { name, issuer, clientId, clientSecret, scopes, skipEmailVerification } = parsed;
 
   // 4. Validate OIDC discovery
   try {
     await discover(issuer);
   } catch {
-    return NextResponse.json(
+    return json(
+      ApiErrorSchema,
       { error: "Could not discover OIDC endpoints at the given issuer URL" },
       { status: 400 },
     );
@@ -88,7 +80,6 @@ export const POST = async (
     skipEmailVerification: skipEmailVerification ?? false,
   });
 
-  // Never expose the client secret — the handler's return type enforces
-  // the public shape
-  return NextResponse.json(toPublicProvider(provider), { status: 201 });
+  // Never expose the client secret — the schema strips it at the boundary
+  return json(OidcProviderSchema, toPublicProvider(provider), { status: 201 });
 };

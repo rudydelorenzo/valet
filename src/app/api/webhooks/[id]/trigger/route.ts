@@ -6,6 +6,9 @@ import { getPortainerInstance } from "@/lib/db/portainer-instances";
 import { getStack } from "@/lib/portainer";
 import { consumeDeployEvent } from "@/lib/worker/jobs/deploy";
 import { ensureWorker } from "@/lib/worker";
+import { json } from "@/lib/http";
+import { ApiErrorSchema, DeployResultSchema, type ApiError } from "@/types/api";
+import type { NextResponse } from "next/server";
 
 /**
  * POST — manually trigger a webhook redeploy (for testing from the UI).
@@ -14,20 +17,23 @@ import { ensureWorker } from "@/lib/worker";
 export const POST = async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
-) => {
+): Promise<
+  NextResponse<{ success: boolean; message: string; eventId: string } | ApiError>
+> => {
   const userId = await requireAuth();
   const { id: webhookId } = await params;
 
   const webhook = await getWebhook(webhookId);
   if (!webhook || webhook.userId !== userId) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return json(ApiErrorSchema, { error: "Not found" }, { status: 404 });
   }
 
   // Pre-flight healthcheck — fail fast if the stack is unreachable
   const instance = await getPortainerInstance(webhook.portainerInstanceId);
   if (!instance) {
-    return Response.json(
-      { success: false, message: "Instance not found" },
+    return json(
+      ApiErrorSchema,
+      { error: "Instance not found" },
       { status: 424 },
     );
   }
@@ -40,8 +46,9 @@ export const POST = async (
     webhook.endpointId,
   );
   if (!stack) {
-    return Response.json(
-      { success: false, message: "Stack not found — it may have been deleted" },
+    return json(
+      ApiErrorSchema,
+      { error: "Stack not found — it may have been deleted" },
       { status: 424 },
     );
   }
@@ -59,5 +66,5 @@ export const POST = async (
   // Drain any queued webhook events that arrived while we were deploying
   ensureWorker();
 
-  return Response.json({ ...result, eventId: event.id });
+  return json(DeployResultSchema, { ...result, eventId: event.id });
 };

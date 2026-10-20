@@ -3,7 +3,7 @@ import {
   setEventStatus,
   cleanupStaleEvents,
 } from "@/lib/db/webhook-events";
-import type { WebhookEvent } from "@/lib/db/schema";
+import type { WebhookEvent } from "@/lib/db/webhook-events";
 
 // ── Types ─────────────────────────────────────────────────────────
 

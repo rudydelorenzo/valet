@@ -3,6 +3,10 @@ import { webhookEvents, webhooks, portainerInstances } from "@/lib/db/schema";
 import { eq, and, desc, asc, lte } from "drizzle-orm";
 import { EVENT_STATUS } from "@/lib/constants";
 
+// Row type re-exported for internal consumers (e.g. the worker) that
+// process events with their full domain fields (webhookId, etc.).
+export type { WebhookEvent } from "@/lib/db/schema";
+
 // ── Read ──────────────────────────────────────────────────────────
 
 /** Fetch an event by ID, scoped to a specific webhook. */
@@ -10,6 +14,7 @@ export const getWebhookEvent = async (eventId: string, webhookId: string) => {
   const [event] = await db
     .select({
       id: webhookEvents.id,
+      type: webhookEvents.type,
       status: webhookEvents.status,
       message: webhookEvents.message,
       triggerSource: webhookEvents.triggerSource,

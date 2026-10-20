@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useEnvironments } from "@/hooks/use-environments";
-import type { Stack } from "@/lib/db/types";
+import type { Stack } from "@/types";
 
 /**
  * Fetches and manages Portainer stacks for an instance. Uses the

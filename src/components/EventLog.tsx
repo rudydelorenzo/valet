@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { LiveToggle } from "@/components/LiveToggle";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Event } from "@/lib/db/types";
+import type { Event } from "@/types";
 
 interface EventLogProps {
   /** URL to GET events from. Must return a JSON array. */

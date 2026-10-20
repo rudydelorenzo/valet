@@ -4,6 +4,16 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { getSecret } from "@/lib/auth/secret";
 import { SETUP_COOKIE, JWT_ISSUER, SETUP_COOKIE_MAX_AGE_SECONDS } from "@/lib/constants";
+import { json, parseBody } from "@/lib/http";
+import {
+  ApiErrorSchema,
+  OkSchema,
+  SetupCodeSchema,
+  SetupStatusSchema,
+  type ApiError,
+  type SetupStatus,
+} from "@/types/api";
+import { NextResponse } from "next/server";
 
 /**
  * GET — check setup status.
@@ -11,10 +21,10 @@ import { SETUP_COOKIE, JWT_ISSUER, SETUP_COOKIE_MAX_AGE_SECONDS } from "@/lib/co
  * - { configured: false, verified: true } → setup cookie valid, go to /admin/settings
  * - { configured: false, verified: false } → need to enter the code
  */
-export const GET = async () => {
+export const GET = async (): Promise<NextResponse<SetupStatus>> => {
   try {
     if (await hasAnyProvider()) {
-      return Response.json({ configured: true });
+      return json(SetupStatusSchema, { configured: true });
     }
   } catch {
     // DB not reachable — treat as unconfigured
@@ -27,25 +37,28 @@ export const GET = async () => {
     try {
       await jwtVerify(setupToken, getSecret(), { issuer: JWT_ISSUER });
       // Verified but no provider — let the frontend show the provider step
-      return Response.json({ configured: false, verified: true });
+      return json(SetupStatusSchema, { configured: false, verified: true });
     } catch {
       // Expired or invalid — fall through
     }
   }
 
   getOrGenerateSetupCode();
-  return Response.json({ configured: false, verified: false });
+  return json(SetupStatusSchema, { configured: false, verified: false });
 };
 
 /**
  * POST — verify the setup code and set a signed, short-lived JWT cookie
  * that grants access to /admin during initial configuration.
  */
-export const POST = async (request: Request) => {
-  const { code } = (await request.json()) as { code?: string };
+export const POST = async (
+  request: Request,
+): Promise<NextResponse<{ ok: boolean } | ApiError>> => {
+  const body = await parseBody(request, SetupCodeSchema);
+  if (body instanceof NextResponse) return body;
 
-  if (!code || !verifySetupCode(code)) {
-    return Response.json({ error: "Invalid code" }, { status: 403 });
+  if (!verifySetupCode(body.code)) {
+    return json(ApiErrorSchema, { error: "Invalid code" }, { status: 403 });
   }
 
   const jwt = await new SignJWT({ setup: true })
@@ -55,7 +68,7 @@ export const POST = async (request: Request) => {
     .setIssuer(JWT_ISSUER)
     .sign(getSecret());
 
-  const response = Response.json({ ok: true });
+  const response = json(OkSchema, { ok: true });
   response.headers.set(
     "Set-Cookie",
     [

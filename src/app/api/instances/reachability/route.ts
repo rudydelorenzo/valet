@@ -1,8 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { z } from "zod";
 import { listPortainerInstancesByUser } from "@/lib/db/portainer-instances";
 import { requireAuth } from "@/lib/auth/guard";
 import { pingInstance } from "@/lib/portainer";
-import type { ReachabilityResult } from "@/types/api";
+import { json } from "@/lib/http";
+import {
+  ApiErrorSchema,
+  ReachabilityResultSchema,
+  type ApiError,
+  type ReachabilityResult,
+} from "@/types/api";
+import type { NextResponse } from "next/server";
+
+const ReachabilityReportSchema = z.object({
+  results: z.record(z.string(), ReachabilityResultSchema),
+});
 
 /**
  * GET /api/instances/reachability?ids=inst_abc,inst_def
@@ -10,18 +22,20 @@ import type { ReachabilityResult } from "@/types/api";
  * Pings Portainer's /api/status for one or more instances in parallel.
  * Returns a map of instance ID → { reachable, version? }.
  */
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest,
+): Promise<NextResponse<z.output<typeof ReachabilityReportSchema> | ApiError>> {
   const userId = await requireAuth();
   const raw = req.nextUrl.searchParams.get("ids");
 
   if (!raw) {
-    return NextResponse.json({ error: "ids parameter required" }, { status: 400 });
+    return json(ApiErrorSchema, { error: "ids parameter required" }, { status: 400 });
   }
 
   const ids = raw.split(",").map((s) => s.trim()).filter(Boolean);
 
   if (ids.length === 0) {
-    return NextResponse.json({ results: {} });
+    return json(ReachabilityReportSchema, { results: {} });
   }
 
   const instances = await listPortainerInstancesByUser(userId, ids);
@@ -43,5 +57,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ results });
+  return json(ReachabilityReportSchema, { results });
 }
