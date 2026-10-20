@@ -7,6 +7,7 @@ const PUBLIC_PREFIXES = [
   "/api/deploy/",    // inbound webhook receiver
   "/api/auth/",    // login / callback / logout / session / providers
   "/api/setup",    // setup flow
+  "/api/healthz",  // container healthcheck
   "/setup",        // setup page
   "/login",        // login page
   "/_next/",       // Next.js internals

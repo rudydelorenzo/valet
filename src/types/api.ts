@@ -63,6 +63,12 @@ export const SetupStatusSchema = z.discriminatedUnion("configured", [
 ]);
 export type SetupStatus = z.infer<typeof SetupStatusSchema>;
 
+/** Health probe (GET /api/healthz) — 200 ok / 503 unavailable. */
+export const HealthSchema = z.object({
+  status: z.enum(["ok", "unavailable"]),
+});
+export type HealthResponse = z.infer<typeof HealthSchema>;
+
 /**
  * Result of pinging a Portainer instance's /api/status.
  * GET /api/instances/reachability → { results: Record<id, ReachabilityResult> }.
