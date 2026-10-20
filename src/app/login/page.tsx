@@ -7,11 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { loginUrl } from "@/lib/urls";
 import { LogIn, Clock } from "lucide-react";
-
-interface Provider {
-  id: string;
-  name: string;
-}
+import type { OidcProvider } from "@/types/api";
 
 const LAST_USED_KEY = "valet:lastProviderId";
 
@@ -44,7 +40,7 @@ const LoginContent = () => {
   const errorMsg = searchParams.get("error");
   const errorProviderId = searchParams.get("provider");
 
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providers, setProviders] = useState<OidcProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const lastUsedId = useSyncExternalStore(
     subscribeToLastUsed,
@@ -55,7 +51,7 @@ const LoginContent = () => {
   useEffect(() => {
     fetch("/api/auth/providers")
       .then((r) => r.json())
-      .then((data: Provider[]) => {
+      .then((data: OidcProvider[]) => {
         if (data.length === 0) {
           router.replace("/setup");
           return;

@@ -92,3 +92,13 @@ export interface OidcProvider {
   enabled?: boolean;
   createdAt?: string;
 }
+
+// ── Users ──────────────────────────────────────────────────────────
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  isAdmin: boolean;
+  createdAt: string;
+}

@@ -5,7 +5,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth/guard";
 import { pingInstance } from "@/lib/portainer";
 
-interface ReachabilityResult {
+export interface ReachabilityResult {
   reachable: boolean;
   version?: string;
 }

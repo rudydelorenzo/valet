@@ -1,9 +1,5 @@
 import { PillBadge } from "@/components/ui/pill-badge";
-
-interface ReachabilityResult {
-  reachable: boolean;
-  version?: string;
-}
+import type { ReachabilityResult } from "@/app/api/instances/reachability/route";
 
 /**
  * Badge showing instance reachability. Shows a loading state until

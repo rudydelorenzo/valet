@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-
-interface ReachabilityResult {
-  reachable: boolean;
-  version?: string;
-}
+import type { ReachabilityResult } from "@/app/api/instances/reachability/route";
 
 const POLL_INTERVAL = 5000;
 
