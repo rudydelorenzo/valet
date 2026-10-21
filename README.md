@@ -210,5 +210,9 @@ Questions or issues? Open a [GitHub issue](https://github.com/rudydelorenzo/vale
 - [ ] Scheduled stack healthckecks with worker
 - [ ] Prebuilt GitHub Actions job to automate the redeploy + wait step.
 - [ ] More integration guides for other CI frameworks
-- [ ] Worker paralleization (sequential right now, if we were to paralellize we have to give some thought to ensuring we don't execute events for the same webhook in parallel)
+- [ ] Ability to self-deploy, this needs some thought given to it... my instinct is the deploy would start and 
+execute successfully, but then immediately after triggering we'd shut down and lose track of progress. Maybe the 
+fix here is writing event lifecycle events to the db and adding some write-flushing to the shutdown logic to ensure it writes
+- [ ] Worker paralleization (sequential right now, if we were to paralellize we have to give some thought to ensuring 
+we don't execute events for the same webhook in parallel)
 - [ ] Better docs LOL, both about usage and about self-hosting
