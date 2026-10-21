@@ -86,6 +86,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Provenance attestations are attached as unknown/unknown
+          # manifests in the index — confusing in docker pull output.
+          provenance: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

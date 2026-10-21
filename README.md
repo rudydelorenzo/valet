@@ -4,10 +4,14 @@
 
 Push a new image from CI, hit a webhook, and your Portainer stack is pulling and redeploying within seconds.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/rudydelorenzo/valet/actions/workflows/ci.yml/badge.svg)](https://github.com/rudydelorenzo/valet/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-rdelorenzo%2Fvalet-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/rdelorenzo/valet)
+[![Docker Pulls](https://img.shields.io/docker/pulls/rdelorenzo/valet)](https://hub.docker.com/r/rdelorenzo/valet)
+[![Docker Image Size](https://img.shields.io/docker/image-size/rdelorenzo/valet/latest)](https://hub.docker.com/r/rdelorenzo/valet)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D%2024-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Docker](https://img.shields.io/badge/Docker-rdelorenzo%2Fvalet-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/rdelorenzo/valet)
 
 ---
 
@@ -196,10 +200,15 @@ Contributions are welcome.
 
 ## License
 
-Distributed under the MIT License. See [LICENSE](LICENSE) for details.
+Copyright (C) 2026 rudydelorenzo
 
-## Acknowledgements
+Distributed under the GNU General Public License v3.0 (copyleft — derivative works must remain GPL). See [LICENSE](LICENSE) for details.
 
-- [Portainer CE](https://www.portainer.io) — whose REST API makes zero-drift redeploys possible
-- The research notes in [`docs/`](docs/) tracing the zot → receiver → Portainer path that started this project
-- [Next.js](https://nextjs.org), [shadcn/ui](https://ui.shadcn.com), and [Drizzle ORM](https://orm.drizzle.team)
+Questions or issues? Open a [GitHub issue](https://github.com/rudydelorenzo/valet/issues).
+
+## Roadmap
+- [ ] Scheduled stack healthckecks with worker
+- [ ] Prebuilt GitHub Actions job to automate the redeploy + wait step.
+- [ ] More integration guides for other CI frameworks
+- [ ] Worker paralleization (sequential right now, if we were to paralellize we have to give some thought to ensuring we don't execute events for the same webhook in parallel)
+- [ ] Better docs LOL, both about usage and about self-hosting
