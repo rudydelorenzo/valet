@@ -4,6 +4,7 @@ node_modules
 .idea
 data
 docs
+dev
 *.tsbuildinfo
 .env*
 Dockerfile
