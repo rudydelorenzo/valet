@@ -62,17 +62,6 @@ const InstancesPage = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (
-      !confirm(
-        "Delete this instance? Associated webhooks will also be deleted.",
-      )
-    )
-      return;
-    await fetch(`/api/instances/${id}`, { method: "DELETE" });
-    load();
-  };
-
   const reachability = useReachability(instances.map((i) => i.id));
 
   if (loading) {

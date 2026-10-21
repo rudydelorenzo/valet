@@ -334,7 +334,6 @@ const DeploymentDialog = ({
             {MAIN_STEPS.map((s, i) => {
               const isActive = s.key === step;
               const isCompleted = i < progressIndex;
-              const isFuture = i > progressIndex;
 
               return (
                 <div key={s.key} className="flex items-start gap-3">

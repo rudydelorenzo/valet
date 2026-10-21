@@ -13,48 +13,22 @@ Push a new image from CI, hit a webhook, and your Portainer stack is pulling and
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 
----
-
 ## Why Valet?
 
 Portainer CE has no stack or container webhooks. This means that if you want to re-pull and re-deploy a stack as part of CI, you can't. You have to go into the UI or SSH.
 
 Valet closes that gap. Each stack gets a **deploy hook URL**. When you want to re-deploy your stack, simply POST to that hook and Valet asks Portainer — via its own API — to update the stack with an image re-pull.
 
-The stack will re-deploy and re-pull, using the same compose file and environment variables. Stack environment (`environment`, `env_file`, interpolated values) survives intact, and stacks remain completely normal and editable in the Portainer UI. Nothing acts on Docker behind Portainer's back.
-
 ## Features
 
-- **Deploy hooks per stack** — a secret-token URL for each stack you want CI to deploy
-- **UI for management** - you can manage users, portainer instances, and webhooks from an easy-to-use web UI.
-- **Zero-drift redeploys** — uses Portainer's own API, keeping the stack fully managed by Portainer
-- **Webhook degradation alerting** — we check stack reachability in the background, so if something breaks you'll know about it before a deploy failure
-- **Multi-instance** — manage several Portainer servers (each with its own access token) with reachability and version checks
-- **CI-ready** — copy-paste snippets for GitHub Actions, CircleCI, and other CI providers, generated for your exact hook
-- **OIDC login** — multi-provider OpenID Connect with PKCE
+- **Deploy hooks per stack** — a secret-token URL that you can call to re-pull and re-deploy any stack.
+- **Centralized deployment** — a single Valet instance can manage deployments on different Portainer environments.
+- **UI for management** - you can manage users, portainer instances, and webhooks from the web UI.
+- **Native redeploys** — uses Portainer's own API, keeping the stack fully managed by Portainer.
+- **Webhook degradation alerting** — we check stack reachability in the background, so if something breaks you'll know about it before a deploy failure.
+- **CI-ready** — copy-paste snippets for GitHub Actions, CircleCI, and other CI providers, generated for you live.
+- **OIDC login** — BYO Auth with multi-provider OpenID Connect support.
 - **Super simple to deploy** — valet is a single container, so you don't have to worry about external queues, databases, or caches.
-
-## How it works
-
-```mermaid
-sequenceDiagram
-    participant CI as CI pipeline
-    participant V as Valet
-    participant Q as SQLite queue
-    participant W as Worker
-    participant P as Portainer CE API
-
-    CI->>V: POST /api/deploy/{token}
-    V->>Q: Enqueue deploy event
-    V-->>CI: 200 { eventId, statusUrl }
-    W->>Q: Claim event (poll)
-    W->>P: GET /api/stacks/{id} + /file
-    W->>P: PUT /api/stacks/{id}?endpointId=…<br/>compose + env sent back, pullImage: true
-    P->>P: Pull image, recreate containers
-    W->>Q: Mark event success/error
-    CI->>V: GET statusUrl (poll until done)
-    V-->>CI: queued → running → success
-```
 
 ## Screenshots
 
@@ -177,6 +151,30 @@ Notes for contributors:
 - Database migrations apply automatically at startup; generated SQL lives in [`drizzle/`](drizzle/).
 - The SQLite database is created at `./data/valet.db` on first run (gitignored).
 
+
+## How it works
+
+```mermaid
+sequenceDiagram
+    participant CI as CI pipeline
+    participant V as Valet
+    participant Q as SQLite queue
+    participant W as Worker
+    participant P as Portainer CE API
+
+    CI->>V: POST /api/deploy/{token}
+    V->>Q: Enqueue deploy event
+    V-->>CI: 200 { eventId, statusUrl }
+    W->>Q: Claim event (poll)
+    W->>P: GET /api/stacks/{id} + /file
+    W->>P: PUT /api/stacks/{id}?endpointId=…<br/>compose + env sent back, pullImage: true
+    P->>P: Pull image, recreate containers
+    W->>Q: Mark event success/error
+    CI->>V: GET statusUrl (poll until done)
+    V-->>CI: queued → running → success
+```
+
+
 ## Contributing
 
 Contributions are welcome.
@@ -212,7 +210,8 @@ Questions or issues? Open a [GitHub issue](https://github.com/rudydelorenzo/vale
 - [ ] More integration guides for other CI frameworks
 - [ ] Ability to self-deploy, this needs some thought given to it... my instinct is the deploy would start and 
 execute successfully, but then immediately after triggering we'd shut down and lose track of progress. Maybe the 
-fix here is writing event lifecycle events to the db and adding some write-flushing to the shutdown logic to ensure it writes
+fix here is writing event lifecycle events to the db and adding some write-flushing to the shutdown logic to ensure it persists, 
+then add some in-flight event recovery logic.
 - [ ] Worker paralleization (sequential right now, if we were to paralellize we have to give some thought to ensuring 
 we don't execute events for the same webhook in parallel)
 - [ ] Better docs LOL, both about usage and about self-hosting

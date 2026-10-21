@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Server } from "lucide-react";
 
 const InstanceIcon = ({
@@ -20,9 +21,12 @@ const InstanceIcon = ({
   return (
     <>
       {!loaded && <Server className="size-4 text-muted-foreground" />}
-      <img
+      <Image
+        unoptimized
         src={`/api/instances/${id}/favicon`}
         alt=""
+        width={64}
+        height={64}
         className={className}
         style={!loaded ? { position: "absolute", opacity: 0 } : undefined}
         onLoad={() => setLoaded(true)}

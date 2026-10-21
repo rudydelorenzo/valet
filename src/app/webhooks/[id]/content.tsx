@@ -43,7 +43,9 @@ const WebhookDetailContent = ({
 
   const [stackHealth, setStackHealth] = useState<StackHealth | null>(null);
 
-  // Check stack health once on load
+  // Check stack health once on load. Depends on the whole `webhook`
+  // since the effect reads several fields from it; it's set once per
+  // page load, so this still runs exactly once per webhook.
   useEffect(() => {
     if (!webhook) return;
     const { portainerInstanceId, endpointId, stackId } = webhook;
@@ -59,7 +61,7 @@ const WebhookDetailContent = ({
       })
       .then(setStackHealth)
       .catch(() => setStackHealth({ healthy: false, error: "Connection failed" }));
-  }, [webhook?.portainerInstanceId, webhook?.endpointId, webhook?.stackId]);
+  }, [webhook]);
 
   useEffect(() => {
     fetch(`/api/webhooks/${id}`)
