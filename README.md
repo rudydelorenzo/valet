@@ -28,6 +28,7 @@ Valet closes that gap. Each stack gets a **deploy hook URL**. When you want to r
 - **Webhook degradation alerting** — we check stack reachability in the background, so if something breaks you'll know about it before a deploy failure.
 - **CI-ready** — copy-paste snippets for GitHub Actions, CircleCI, and other CI providers, generated for you live.
 - **OIDC login** — BYO Auth with multi-provider OpenID Connect support.
+- **Private by design** — Valet is designed to be used with private repos and image repositories.
 - **Super simple to deploy** — valet is a single container, so you don't have to worry about external queues, databases, or caches.
 
 ## Screenshots
@@ -205,7 +206,7 @@ Distributed under the GNU General Public License v3.0 (copyleft — derivative w
 Questions or issues? Open a [GitHub issue](https://github.com/rudydelorenzo/valet/issues).
 
 ## Roadmap
-- [ ] Scheduled stack healthckecks with worker
+- [ ] Scheduled stack healthchecks with worker
 - [ ] Prebuilt GitHub Actions job to automate the redeploy + wait step.
 - [ ] More integration guides for other CI frameworks
 - [ ] Ability to self-deploy, this needs some thought given to it... my instinct is the deploy would start and 

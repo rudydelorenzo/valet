@@ -20,8 +20,11 @@ export function useReachability(instanceIds: string[]) {
     idsRef.current = instanceIds;
   }, [instanceIds]);
 
+  // Stable key — the polling effect restarts only when the ID set changes.
+  const idsKey = instanceIds.join(",");
+
   useEffect(() => {
-    if (instanceIds.length === 0) return;
+    if (!idsKey) return;
 
     let cancelled = false;
 
@@ -49,7 +52,7 @@ export function useReachability(instanceIds: string[]) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [instanceIds.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [idsKey]);
 
   return results;
 }
