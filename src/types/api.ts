@@ -36,7 +36,6 @@ export const DeployReceiptSchema = z.object({
   eventId: z.string(),
   deployUrl: z.string(),
   statusUrl: z.string(),
-  eventUrl: z.string(),
 });
 export type DeployReceipt = z.infer<typeof DeployReceiptSchema>;
 

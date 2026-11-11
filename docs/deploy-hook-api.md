@@ -17,8 +17,7 @@ the queue does not count against the window.
   "received": true,
   "eventId": "evt_…",
   "deployUrl": "https://valet.example.com/api/deploy/{token}",
-  "statusUrl": "https://valet.example.com/api/deploy/{token}/status/evt_…",
-  "eventUrl": "https://valet.example.com/api/deploy/{token}/events/evt_…"
+  "statusUrl": "https://valet.example.com/api/deploy/{token}/status/evt_…"
 }
 ```
 
@@ -43,11 +42,3 @@ Poll deploy progress. With `Accept: text/plain` you get just the status word; ot
 | `202` | `queued` or `running` — keep polling |
 | `502` | `error` — see `message` |
 | `404` | Unknown token or event |
-
-## `GET /api/deploy/{token}/events/{eventId}`
-
-Full event details: status, trigger source, timestamps, and `steps` — the
-complete append-only step history (`created → queued → claimed → fetching
-→ deploying → verifying → success|error`, with `queued` as the pickable
-marker), with the outcome message on the terminal row and the pre-PUT
-evidence snapshot on the `deploying` row.

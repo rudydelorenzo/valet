@@ -82,7 +82,7 @@ CI                          Valet (this app)                    Portainer CE
 5. Polling: `GET /api/deploy/[token]/status/[eventId]` maps event status to
    HTTP codes (`200` success, `202` queued/running, `502` error). With
    `Accept: text/plain` it returns the bare status word — that's what the
-   CI snippets poll. `GET .../events/[eventId]` returns full event details.
+   CI snippets poll.
 
 The manual UI trigger (`POST /api/webhooks/[id]/trigger`) runs the deploy
 synchronously in the request (auth required) and drains the queue afterward
@@ -213,7 +213,7 @@ Known gap: `webhooks.debounceSeconds` is stored and exposed by the API but
 
 | Prefix | Auth | Purpose |
 | --- | --- | --- |
-| `/api/deploy/[token]` (+`/status/`, `/events/`) | token in URL | CI-facing deploy hooks |
+| `/api/deploy/[token]` (+`/status/`) | token in URL | CI-facing deploy hooks |
 | `/api/webhooks` (+`/[id]`, `/trigger`, `/events`) | session | CRUD + manual trigger |
 | `/api/instances` (+`/[id]`, `/environments`, `/stacks`, `/environments/[envId]/stacks/[stackId]`, `/favicon`, `/reachability`) | session | Portainer instance management |
 | `/api/admin/users`, `/api/admin/providers` | admin | user/provider admin |

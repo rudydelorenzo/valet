@@ -64,6 +64,8 @@ curl -s -X POST "{{{deployUrl}}}"
 Use the `statusUrl` from the trigger response. It returns a plain-text status: `queued`, `running`, `success`, or `error`.
 
 ```bash
-# Replace EVENT_ID with the eventId from the trigger response
-curl -s "{{{deployUrl}}}/status/EVENT_ID"
+# Trigger and capture the statusUrl from the response
+STATUS_URL=$(curl -s -X POST "{{{deployUrl}}}" | jq -r '.statusUrl')
+
+curl -s -H "Accept: text/plain" "$STATUS_URL"
 ```

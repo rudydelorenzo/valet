@@ -13,12 +13,3 @@ export function getStatusUrl(
 ): string {
   return `${origin}/api/deploy/${token}/status/${eventId}`;
 }
-
-/** URL to fetch the full event details. */
-export function getEventUrl(
-  origin: string,
-  token: string,
-  eventId: WebhookEvent["id"],
-): string {
-  return `${origin}/api/deploy/${token}/events/${eventId}`;
-}
