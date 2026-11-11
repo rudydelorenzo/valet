@@ -9,10 +9,12 @@
  * so unknown keys — secrets included — are stripped at the API boundary.
  *
  * Endpoint-specific API contract types live in @/types/api. Portainer's
- * own API shapes live in @/lib/portainer.
+ * own API shapes live in @/lib/portainer, except shapes shared with other
+ * layers (the deployment journal) which live here.
  */
 import { z } from "zod";
 import { WebhookStatusSchema } from "@/types/api";
+import { EVENT_STATES, EVENT_STEPS } from "@/lib/constants";
 
 /**
  * Accepts a Date (fresh from the DB layer) or an ISO string (already
@@ -76,6 +78,7 @@ export const WebhookSchema = z.object({
   enabled: z.boolean(),
   status: WebhookStatusSchema,
   instanceName: z.string().nullable(),
+  deployTimeoutSeconds: z.number(),
   createdAt: timestamp,
   eventsTotal: z.number().optional(),
   eventsFailed: z.number().optional(),
@@ -109,19 +112,72 @@ export type CreatedWebhook = z.infer<typeof CreatedWebhookSchema>;
 
 // ── Events ─────────────────────────────────────────────────────────
 
+/**
+ * Evidence baseline recorded just before the redeploy PUT (on the
+ * `deploying` step row). Recovery compares the live stack against this —
+ * Docker-vs-Docker, Portainer-vs-Portainer — never against our own clock.
+ */
+export const DeploySnapshotSchema = z.object({
+  at: z.number(),
+  updateDate: z.number(),
+  containers: z.array(
+    z.object({ id: z.string(), created: z.number(), imageId: z.string() }),
+  ),
+});
+export type DeploySnapshot = z.infer<typeof DeploySnapshotSchema>;
+
+/** Outcome payload on terminal step rows (success|error). */
+export const StepMessageSchema = z.object({ message: z.string().nullable() });
+export type StepMessage = z.infer<typeof StepMessageSchema>;
+
+/** Per-step payload: the pre-PUT snapshot on `deploying`, the outcome message on terminal rows. */
+export const EventStepDataSchema = z
+  .union([DeploySnapshotSchema, StepMessageSchema])
+  .nullable();
+export type EventStepData = z.infer<typeof EventStepDataSchema>;
+
+/**
+ * One row of the append-only deploy state machine log:
+ * claimed → fetching → deploying → verifying → success|error.
+ */
+export const EventStepSchema = z.object({
+  step: z.enum(EVENT_STEPS),
+  createdAt: timestamp,
+  data: EventStepDataSchema,
+});
+export type EventStep = z.infer<typeof EventStepSchema>;
+
 export const EventSchema = z.object({
   id: z.string(),
-  status: z.string(),
+  status: z.enum(EVENT_STATES),
   type: z.string(),
-  message: z.string().nullable(),
   triggerSource: z.string(),
   createdAt: timestamp,
+  /** Full state-machine history, append-only (see webhook_event_steps). */
+  steps: z.array(EventStepSchema),
   webhookName: z.string().optional(),
   instanceName: z.string().optional(),
 });
 export type Event = z.infer<typeof EventSchema>;
 
 // ── Portainer ──────────────────────────────────────────────────────
+
+/**
+ * The deployment journal carried on Portainer's stack object
+ * (`DeploymentStatus`) — the status progression of the current
+ * deployment, cleared when a new deployment starts. Field names are
+ * Portainer's own (PascalCase); shared by the Portainer client and the
+ * deploy state machine's evidence ladder.
+ */
+export const DeploymentJournalEntrySchema = z.object({
+  Status: z.number(),
+  Time: z.number(),
+  Message: z.string().optional(),
+});
+export type DeploymentJournalEntry = z.infer<typeof DeploymentJournalEntrySchema>;
+
+export const DeploymentJournalTypeSchema = z.array(DeploymentJournalEntrySchema);
+export type DeploymentJournalType = z.infer<typeof DeploymentJournalTypeSchema>;
 
 /**
  * A Portainer stack, as exposed by the instance sub-routes.

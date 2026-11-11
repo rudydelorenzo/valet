@@ -1,9 +1,11 @@
 import { z } from "zod";
 import { getWebhook } from "@/lib/db/webhooks";
 import { listWebhookEvents } from "@/lib/db/webhook-events";
+import { listEventStepsForEvents } from "@/lib/db/webhook-event-steps";
 import { requireAuth } from "@/lib/auth/guard";
 import { json } from "@/lib/http";
 import { EventSchema } from "@/types";
+import { statusFromSteps } from "@/lib/worker/jobs/deploy/state";
 import { ApiErrorSchema, type ApiError } from "@/types/api";
 import type { NextResponse } from "next/server";
 import type { Event } from "@/types";
@@ -26,6 +28,13 @@ export const GET = async (
   }
 
   const events = await listWebhookEvents(id);
+  const stepsByEvent = await listEventStepsForEvents(events.map((e) => e.id));
 
-  return json(EventsSchema, events);
+  return json(
+    EventsSchema,
+    events.map((e) => {
+      const steps = stepsByEvent.get(e.id) ?? [];
+      return { ...e, status: statusFromSteps(steps), steps };
+    }),
+  );
 };

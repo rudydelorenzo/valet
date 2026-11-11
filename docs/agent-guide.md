@@ -43,7 +43,7 @@ CI                          Valet (this app)                    Portainer CE
  │  POST /api/deploy/<token>   │                                     │
  ├────────────────────────────►│ lookup webhook by token (URL = auth) │
  │                             │ pre-flight: instance + stack exist   │
- │                             │ INSERT webhook_events (status=queued)│
+ │                             │ INSERT event + step rows (created, queued)│
  │                             │ ensureWorker()                       │
  │◄── 200 {received, eventId,  │                                     │
  │        deployUrl, statusUrl, │                                     │
@@ -68,13 +68,13 @@ CI                          Valet (this app)                    Portainer CE
 2. The route looks the token up (`getWebhookByToken`), 404s on unknown, 403s
    on disabled, then **pre-flights**: instance exists, stack still exists on
    Portainer (424 if not). Fail fast before queueing.
-3. It inserts a `webhook_events` row (`status=queued`) and returns
-   immediately with a `DeployReceipt`: `received`, `eventId`, `deployUrl`,
-   `statusUrl`, `eventUrl`. CI polls `statusUrl`.
+3. It inserts the event row and its `created`/`queued` step rows and
+   returns immediately with a `DeployReceipt`: `received`, `eventId`,
+   `deployUrl`, `statusUrl`, `eventUrl`. CI polls `statusUrl`.
 4. The **worker** (in-process, `src/lib/worker/`) claims the oldest queued
    event, marks it `running`, and dispatches to the handler registered for
    the event type — `deploy` → `consumeDeployEvent`
-   (`src/lib/worker/jobs/deploy.ts`) → `redeployStack`
+   (`src/lib/worker/jobs/deploy/`) → `updateStack`
    (`src/lib/portainer.ts`): fetch the stack + its compose file, PUT them
    back with `PullImage: true` and `RepullImageAndRedeploy: true` (both are
    sent for old/new Portainer compatibility), preserving the stack's `Env`.
@@ -114,8 +114,8 @@ synchronously in the request (auth required) and drains the queue afterward
 
 ### 2.3 Data model
 
-Six tables in `src/lib/db/schema.ts`, all with prefixed random IDs
-(`usr_…`, `inst_…`, `whk_…`, `evt_…`, `prov_…`, `link_…`):
+Seven tables in `src/lib/db/schema.ts`, all with prefixed random IDs
+(`usr_…`, `inst_…`, `whk_…`, `evt_…`, `stp_…`, `prov_…`, `link_…`):
 
 - `users` — email, name, `isAdmin`
 - `user_oidc_links` — provider/sub ↔ user links
@@ -123,9 +123,20 @@ Six tables in `src/lib/db/schema.ts`, all with prefixed random IDs
   `skipEmailVerification`, enabled
 - `portainer_instances` — name, url, token (X-API-Key), `insecureTls`
 - `webhooks` — name, `token` (the URL secret, 32 random bytes base64url),
-  instance + stackId + endpointId, enabled, `debounceSeconds`
-- `webhook_events` — type, status (`queued` → `running` → `success|error`),
-  message, `triggerSource` (`webhook`|`manual`), createdAt
+  instance + stackId + endpointId, enabled, `debounceSeconds`,
+  `deployTimeoutSeconds` (per-webhook deploy deadline, default 300)
+- `webhook_events` — type, `triggerSource` (`webhook`|`manual`), createdAt.
+  Identity only: **all state lives in the step log**, and the lifecycle
+  status shown on the wire is derived from it (`statusFromSteps`).
+- `webhook_event_steps` — the **append-only deploy state-machine log**:
+  one row per transition (`created` → `queued` → `claimed` → `fetching` →
+  `deploying` → `verifying` → `success|error`; `queued` is the pickable
+  marker — written at birth and re-appended on recovery re-enqueue)
+  with a JSON `data` payload (the pre-PUT evidence snapshot on `deploying`,
+  the outcome message on terminal rows). An event's full history is
+  reconstructable from this table alone; rows are only ever inserted.
+  Pre-upgrade events are backfilled from their old `status`/`message` in
+  the 0002 migration (indeterminate ones keep only their terminal row).
 
 Every user-scoped row carries `userId`; routes **must** verify ownership
 (e.g. `webhook.userId !== userId` → 404) — the token-authenticated deploy
@@ -140,18 +151,47 @@ applied migrations.
 
 `src/lib/worker/index.ts` — a deliberately simple in-process loop:
 
-- Polls the DB every 1s for the oldest `queued` event, claims it (status →
-  `running`).
+- Polls the DB every 1s for the oldest event at the `queued` step and
+  claims it (appends `claimed` — the pickable marker is consumed).
 - Dispatches by event type to a registered handler (`Map<string,
   EventHandler>`). Handlers return `{ success, message }`.
 - Sequential by design — no parallelism (roadmap item).
 - **Idles out** after 30s with no work; every enqueue path calls
   `ensureWorker()` to wake it again.
-- At startup it marks `running` events older than 10 minutes as `error`
-  ("interrupted or timed out") — crash recovery.
 - Handlers are registered in `instrumentation.ts` *before* `startWorker()`.
   New event types: write a handler in `src/lib/worker/jobs/`, register it
   there.
+
+The deploy handler (`src/lib/worker/jobs/deploy/`) is a **crash-recoverable
+state machine** — fresh and recovered events run the same `advance()` code,
+resuming from the event's step log (furthest work step = position;
+re-enqueue/claim rows after a crash point don't reset it). `state.ts` holds
+the pure decision logic; `index.ts` does the I/O. The rules that make
+recovery sound (step-by-step flow in
+[`docs/deploy-job-state-machine.md`](deploy-job-state-machine.md)):
+
+- **One PUT per event.** The `deploying` log row — carrying the pre-PUT
+  evidence snapshot — is written to the DB *before* the redeploy PUT. A
+  crash past that write is recovered by *observing*, never re-sending —
+  re-sending could pull a newer image than the one CI asked for.
+- **No wall clocks in evidence.** The snapshot (stack `UpdateDate` +
+  containers' `{id, created, imageId}`) lets recovery compare Docker-vs-Docker
+  and Portainer-vs-Portainer instead of trusting two hosts' clocks. Evidence
+  rungs: the deployment journal (newer Portainer only), container recreation,
+  `UpdateDate` bump (covers no-op redeploys).
+- **Deadline.** Each webhook has `deployTimeoutSeconds`; once an event is
+  *claimed for processing* it must resolve within that window or it is
+  marked failed with a `timed out` message — queue wait deliberately does
+  not count, and a crash-requeue cycle does not buy extra time (the window
+  runs from the first `claimed` row). Checked at job start and every watch
+  tick.
+- **Inactive stacks are refused** at every observation point (a deploy would
+  activate them) — the error message names the step.
+- At boot, `requeueInterrupted()` re-enqueues orphaned events (appends
+  `queued`, the pickable marker) so the loop re-claims them and the
+  machine resumes at its furthest work step. `finishEvent` appends the
+  terminal step row — state lives only in the log, so there is nothing to
+  keep in sync.
 
 Known gap: `webhooks.debounceSeconds` is stored and exposed by the API but
 **not yet enforced** by the worker.
@@ -221,7 +261,8 @@ Layer boundaries that matter:
 - **The DB layer is sealed** — see the three laws below.
 - **Types live with their boundary:** API contracts in `types/api.ts`,
   wire shapes in `types/index.ts`, row types in `db/schema.ts`, Portainer
-  payload shapes in `lib/portainer.ts`.
+  payload shapes in `lib/portainer.ts` — except shapes shared across
+  layers (the deployment journal), which live in `types/index.ts`.
 
 ## 4. Development guidelines
 
@@ -304,8 +345,9 @@ export const POST = async (request: Request, { params }: { params: Promise<…> 
   were resolved with render-time state adjustment (prev-prop guards), not
   `eslint-disable`.
 - Prefer explicit `if/else` in route handlers over clever ternaries.
-- No test suite yet — correctness today is enforced by lint, typecheck, and
-  the schema gate. New tests would be welcome.
+- Tests: vitest (`npm test`, also run in CI). Coverage today is the deploy
+  state machine's decision logic (`jobs/deploy/__tests__/`); everything
+  else still leans on lint, typecheck, and the schema gate.
 
 ## 5. Watch out for
 
@@ -341,7 +383,7 @@ export const POST = async (request: Request, { params }: { params: Promise<…> 
 
 | Task | Touch |
 | --- | --- |
-| Change the deploy behavior | `src/lib/worker/jobs/deploy.ts` + `src/lib/portainer.ts` |
+| Change the deploy behavior | `src/lib/worker/jobs/deploy/` (`index.ts` = state machine, `state.ts` = pure decisions) + `src/lib/portainer.ts` |
 | New event type / job | `src/lib/worker/jobs/` + register in `src/instrumentation.ts` |
 | New endpoint | `src/app/api/…/route.ts` + schemas in `src/types/api.ts` |
 | DB change | `src/lib/db/schema.ts` → `drizzle-kit generate` → accessor in `src/lib/db/` |

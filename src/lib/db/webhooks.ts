@@ -1,9 +1,11 @@
 import { db } from "@/lib/db";
 import { webhooks, portainerInstances, webhookEvents } from "@/lib/db/schema";
+import { lastEventStep } from "./webhook-event-steps";
 import { eq, desc, and, inArray, gte } from "drizzle-orm";
 import {
-    DEFAULT_DEBOUNCE_SECONDS, DEGRADATION_THRESHOLD, DEGRADATION_WINDOW_MS,
-    EVENT_STATUS,
+    DEFAULT_DEBOUNCE_SECONDS, DEFAULT_DEPLOY_TIMEOUT_SECONDS,
+    DEGRADATION_THRESHOLD, DEGRADATION_WINDOW_MS,
+    TERMINAL_STATE,
     WEBHOOK_STATUS,
     type WebhookStatus,
 } from "@/lib/constants";
@@ -49,7 +51,7 @@ export const getWebhookHealth = async (webhookIds: string[]) => {
   const events = await db
     .select({
       webhookId: webhookEvents.webhookId,
-      status: webhookEvents.status,
+      lastStep: lastEventStep,
     })
     .from(webhookEvents)
     .where(
@@ -66,7 +68,7 @@ export const getWebhookHealth = async (webhookIds: string[]) => {
       degraded: false,
     };
     entry.total++;
-    if (evt.status === EVENT_STATUS.ERROR) entry.failed++;
+    if (evt.lastStep === TERMINAL_STATE.ERROR) entry.failed++;
     health.set(evt.webhookId, entry);
   }
 
@@ -94,6 +96,7 @@ export const getWebhook = async (id: string) => {
       endpointId: webhooks.endpointId,
       enabled: webhooks.enabled,
       debounceSeconds: webhooks.debounceSeconds,
+      deployTimeoutSeconds: webhooks.deployTimeoutSeconds,
       createdAt: webhooks.createdAt,
       instanceName: portainerInstances.name,
     })
@@ -118,6 +121,7 @@ export const listWebhooksByUser = async (userId: string) => {
       endpointId: webhooks.endpointId,
       enabled: webhooks.enabled,
       debounceSeconds: webhooks.debounceSeconds,
+      deployTimeoutSeconds: webhooks.deployTimeoutSeconds,
       createdAt: webhooks.createdAt,
       instanceName: portainerInstances.name,
     })
@@ -140,6 +144,7 @@ export const createWebhook = async (data: {
   stackId: number;
   endpointId: number;
   debounceSeconds?: number;
+  deployTimeoutSeconds?: number;
 }) => {
   const token = crypto.randomBytes(32).toString("base64url");
 
@@ -149,16 +154,17 @@ export const createWebhook = async (data: {
       ...data,
       token,
       debounceSeconds: data.debounceSeconds ?? DEFAULT_DEBOUNCE_SECONDS,
+      deployTimeoutSeconds: data.deployTimeoutSeconds ?? DEFAULT_DEPLOY_TIMEOUT_SECONDS,
     })
     .returning();
 
   return webhook;
 };
 
-/** Patch a webhook (name, enabled, debounceSeconds). */
+/** Patch a webhook (name, enabled, debounceSeconds, deployTimeoutSeconds). */
 export const updateWebhook = async (
   id: string,
-  updates: { name?: string; enabled?: boolean; debounceSeconds?: number },
+  updates: { name?: string; enabled?: boolean; debounceSeconds?: number; deployTimeoutSeconds?: number },
 ) => {
   const [updated] = await db
     .update(webhooks)

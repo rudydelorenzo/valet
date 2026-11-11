@@ -1,12 +1,13 @@
 import { getWebhook } from "@/lib/db/webhooks";
-import { createEvent, setEventStatus } from "@/lib/db/webhook-events";
-import { EVENT_SOURCE, EVENT_TYPE } from "@/lib/constants";
+import { createEvent, finishEvent, claimEventById } from "@/lib/webhook-events";
+import { EVENT_SOURCE, EVENT_TYPE, STACK_STATUS, TERMINAL_STATE } from "@/lib/constants";
 import { requireAuth } from "@/lib/auth/guard";
 import { getPortainerInstance } from "@/lib/db/portainer-instances";
 import { getStack } from "@/lib/portainer";
 import { consumeDeployEvent } from "@/lib/worker/jobs/deploy";
 import { ensureWorker } from "@/lib/worker";
 import { json } from "@/lib/http";
+import { inactiveMessage } from "@/lib/worker/jobs/deploy/state";
 import { ApiErrorSchema, DeployResultSchema, type ApiError } from "@/types/api";
 import type { NextResponse } from "next/server";
 
@@ -52,14 +53,34 @@ export const POST = async (
       { status: 424 },
     );
   }
+  if (stack.Status === STACK_STATUS.INACTIVE) {
+    return json(
+      ApiErrorSchema,
+      { error: inactiveMessage("preflight") },
+      { status: 424 },
+    );
+  }
 
   const event = await createEvent(webhook.id, EVENT_TYPE.DEPLOY, EVENT_SOURCE.MANUAL);
 
-  const result = await consumeDeployEvent(event);
+  // Claim the event atomically before running it inline — without this,
+  // the worker loop would claim the same queued event on its next poll
+  // and deploy the stack twice.
+  const claimed = await claimEventById(event.id);
+  if (!claimed) {
+    ensureWorker();
+    return json(DeployResultSchema, {
+      success: true,
+      message: "Redeploy queued — the worker is processing it",
+      eventId: event.id,
+    });
+  }
 
-  await setEventStatus(
+  const result = await consumeDeployEvent(claimed);
+
+  await finishEvent(
     event.id,
-    result.success ? "success" : "error",
+    result.success ? TERMINAL_STATE.SUCCESS : TERMINAL_STATE.ERROR,
     result.message,
   );
 

@@ -13,3 +13,12 @@ sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");
 
 export const db = drizzle(sqlite, { schema });
+
+/**
+ * A db handle or an open transaction — accessors that participate in
+ * multi-statement transactions (e.g. event birth) accept either so
+ * callers can compose them under one `db.transaction`.
+ */
+export type DbExecutor =
+  | typeof db
+  | Parameters<Parameters<typeof db.transaction>[0]>[0];

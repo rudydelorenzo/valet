@@ -1,7 +1,7 @@
 const ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
-const SUFFIX_LENGTH = 12;
+const SUFFIX_LENGTH = 24;
 
 const randomString = (length: number): string => {
   const bytes = crypto.getRandomValues(new Uint8Array(length));

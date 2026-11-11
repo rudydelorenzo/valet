@@ -5,6 +5,12 @@
  * from them. Broad application models live in @/types.
  */
 import { z } from "zod";
+import {
+  MIN_DEPLOY_TIMEOUT_SECONDS,
+  MAX_DEPLOY_TIMEOUT_SECONDS,
+  EVENT_STATES,
+  WEBHOOK_STATUS,
+} from "@/lib/constants";
 
 // ── Shared response shapes ─────────────────────────────────────────
 
@@ -36,7 +42,7 @@ export type DeployReceipt = z.infer<typeof DeployReceiptSchema>;
 
 /** JSON form of GET /api/deploy/[token]/status/[eventId] (text/plain is the other form). */
 export const DeployStatusSchema = z.object({
-  status: z.string(),
+  status: z.enum(EVENT_STATES),
   message: z.string().optional(),
 });
 export type DeployStatus = z.infer<typeof DeployStatusSchema>;
@@ -80,36 +86,42 @@ export const ReachabilityResultSchema = z.object({
 export type ReachabilityResult = z.infer<typeof ReachabilityResultSchema>;
 
 /** Health status of a webhook, from its enabled flag and 24h failure rate. */
-export const WebhookStatusSchema = z.enum(["active", "disabled", "degraded"]);
+export const WebhookStatusSchema = z.enum(WEBHOOK_STATUS);
 export type WebhookStatus = z.infer<typeof WebhookStatusSchema>;
 
 // ── Request bodies ─────────────────────────────────────────────────
 
 const name = z.string().trim().min(1, "name is required");
 
+const deployTimeoutSeconds = z
+  .number()
+  .int("deployTimeoutSeconds must be an integer between 10 and 86400")
+  .min(MIN_DEPLOY_TIMEOUT_SECONDS, "deployTimeoutSeconds must be an integer between 10 and 86400")
+  .max(MAX_DEPLOY_TIMEOUT_SECONDS, "deployTimeoutSeconds must be an integer between 10 and 86400")
+  .optional();
+
+const debounceSeconds = z
+  .number()
+  .int("debounceSeconds must be an integer between 0 and 86400")
+  .min(0, "debounceSeconds must be an integer between 0 and 86400")
+  .max(86400, "debounceSeconds must be an integer between 0 and 86400")
+  .optional();
+
 export const CreateWebhookSchema = z.object({
   name,
   portainerInstanceId: z.string().min(1, "portainerInstanceId is required"),
   stackId: z.number().int().min(0, "stackId must be a non-negative integer"),
   endpointId: z.number().int().min(0, "endpointId must be a non-negative integer"),
-  debounceSeconds: z
-    .number()
-    .int("debounceSeconds must be an integer between 0 and 86400")
-    .min(0, "debounceSeconds must be an integer between 0 and 86400")
-    .max(86400, "debounceSeconds must be an integer between 0 and 86400")
-    .optional(),
+  debounceSeconds,
+  deployTimeoutSeconds,
 });
 
 export const UpdateWebhookSchema = z
   .object({
     name: name.optional(),
     enabled: z.boolean().optional(),
-    debounceSeconds: z
-      .number()
-      .int("debounceSeconds must be an integer between 0 and 86400")
-      .min(0, "debounceSeconds must be an integer between 0 and 86400")
-      .max(86400, "debounceSeconds must be an integer between 0 and 86400")
-      .optional(),
+    debounceSeconds,
+    deployTimeoutSeconds,
   })
   .refine((body) => Object.keys(body).length > 0, "No valid fields to update");
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -76,6 +77,7 @@ const DeploymentDialog = ({
   onOpenChange,
   onCreated,
 }: DeploymentDialogProps) => {
+  const router = useRouter();
   // State
   const [step, setStep] = useState<StepKey>(DEFAULTS.step);
   const [instances, setInstances] = useState<Instance[]>(DEFAULTS.instances);
@@ -247,6 +249,11 @@ const DeploymentDialog = ({
   const handleDone = () => {
     onOpenChange(false);
     onCreated?.();
+    // Land on the new hook's page — its Settings card is where the
+    // deploy timeout (and anything else) gets tuned after creation.
+    if (createdWebhook) {
+      router.push(`/webhooks/${createdWebhook.id}`);
+    }
   };
 
   // Render step content

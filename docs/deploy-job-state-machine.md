@@ -74,6 +74,11 @@ Snapshots the stack's `UpdateDate` and its containers' `{id, created,
 imageId}` into the log row, **then** sends the PUT (`PullImage` +
 `RepullImageAndRedeploy`, env preserved). 
 
+A 2xx response is deliberately not proof: its `Status` field is ignored,
+and the outcome is assessed in `verifying` like every other path — keeping
+the machine version-agnostic. A non-2xx fails immediately with a specific
+message (409 = deploy already in progress).
+
 Why the snapshot? We want to check if a re-deploy has actually taken place, 
 even if we sent the PUT (thus triggering the redeploy) but then the process 
 died or was killed. The clearest scenario here is if we use a webhook to 
@@ -104,20 +109,23 @@ evidence ladder:
 * `UpdateDate` bump — so a redeploy that landed while we were dead is still reported as a success. 
 
 Outcomes: 
-* stack active + evidence → `success`;  
+* stack active + evidence → `success`;
+* stack active + no evidence → keep watching (see below);
 * error status on `DeploymentStatus` (Portainer >= 2.41 only) → `error` with Portainer's own message; 
 * stack inactive → `error`;
 * deadline → `error` ("could not confirm").
 
-> TODO: What happens when stack active but no evidence? Example scenario:
-> 1. Portainer prior to 2.41, thus redeploy is synchronous
-> 2. We send redeploy PUT
-> 3. Valet process dies, request is left dangling
-> 4. Valet process restarts, is unaware that PUT ended up returning a 4xx
-> 5. Stack may be in `active` status, but would obviously have no evidence of redeploy because none happened
-> 6. We should report back an error
+**Stack active but no evidence** — For example, we PUT to Portainer pre-2.41 (synchronous redeploy). Valet dies 
+mid-request and Portainer returns a 4xx we never see, on a stack that was already `active`. When valet 
+resumes and picks up the stranded event it keeps watching, and if no evidence ever appears 
+the deadline fires and the event ends in `error` ("could not confirm") — 
+it can never resolve to `success`, which always requires evidence. 
+We deliberately do not error early here: on pre-2.41 Portainer a deploy still running 
+server-side is indistinguishable from one that died, and its evidence only appears 
+when it actually finishes (slow pulls!). The per-webhook `deploy_timeout_seconds`
+is the patience knob — how long to keep watching before declaring failure.
 
-This colsely mirrors [Portainer's own guidance](https://docs.portainer.io/portainer-documentation/sts/faqs/troubleshooting/stacks-deployments-and-updates/why-did-my-api-client-start-getting-409-errors-after-upgrading#how-should-my-ci-cd-pipeline-check-if-a-deployment-succeeded) 
+This closely mirrors [Portainer's own guidance](https://docs.portainer.io/portainer-documentation/sts/faqs/troubleshooting/stacks-deployments-and-updates/why-did-my-api-client-start-getting-409-errors-after-upgrading#how-should-my-ci-cd-pipeline-check-if-a-deployment-succeeded) 
 for checking deployment success, while retaining compatibility for pre-2.41 versions.
 
 
@@ -133,5 +141,5 @@ is **derived from this log** — state lives in exactly one place.
 | --- | --- |
 | Executor (fetch/PUT/watch) | `src/lib/worker/jobs/deploy/index.ts` |
 | Pure decisions + invariants | `src/lib/worker/jobs/deploy/state.ts` |
-| Log writes / reads | `src/lib/db/webhook-events.ts` |
+| Log writes / reads | `src/lib/db/webhook-event-steps.ts` (pure accessors); `src/lib/webhook-events.ts` (lifecycle rules: enqueue, claim, finish, recovery) |
 | State vocabulary | `src/lib/constants.ts` (`DEPLOY_STEP`, `TERMINAL_STATE`, …) |

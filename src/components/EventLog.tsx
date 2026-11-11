@@ -59,6 +59,11 @@ const EventLog = ({ fetchUrl, limit = 100, live: initialLive = false }: EventLog
         <div className="divide-y divide-border rounded-lg border">
           {events.map((evt) => {
             const isOpen = expanded === evt.id;
+            // The outcome message rides on the terminal step row (recorded
+            // last) — read it off the history this component already holds.
+            const terminalData = evt.steps.at(-1)?.data;
+            const message =
+              terminalData && "message" in terminalData ? terminalData.message : null;
 
             return (
               <div key={evt.id}>
@@ -111,10 +116,10 @@ const EventLog = ({ fetchUrl, limit = 100, live: initialLive = false }: EventLog
                         <dt className="text-muted-foreground">Source</dt>
                         <dd>{evt.triggerSource}</dd>
 
-                        {evt.message && (
+                        {message && (
                           <>
                             <dt className="text-muted-foreground">Message</dt>
-                            <dd className="break-all">{evt.message}</dd>
+                            <dd className="break-all">{message}</dd>
                           </>
                         )}
 

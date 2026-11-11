@@ -1,9 +1,9 @@
 import {
   claimNextEvent,
-  setEventStatus,
-  cleanupStaleEvents,
-} from "@/lib/db/webhook-events";
-import type { WebhookEvent } from "@/lib/db/webhook-events";
+  finishEvent,
+} from "@/lib/webhook-events";
+import { TERMINAL_STATE } from "@/lib/constants";
+import type { WebhookEvent } from "@/lib/db/schema";
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -58,12 +58,9 @@ export const ensureWorker = startWorker;
 
 const loop = async (): Promise<void> => {
   console.info("[Worker] Starting event loop");
-  try {
-    await cleanupStaleEvents(new Date(Date.now() - 10 * 60 * 1000));
-    console.info("[Worker] Stale event cleanup completed");
-  } catch (err) {
-    console.error("[Worker] Failed to clean up stale events:", err);
-  }
+  // Interrupted events are recovered at boot (instrumentation.ts), which
+  // re-enqueues orphans so this loop re-claims them and the job resumes
+  // from its furthest work step.
 
   let lastActivity = Date.now();
 
@@ -98,7 +95,7 @@ const processEvent = async (event: WebhookEvent): Promise<void> => {
   if (!handler) {
     console.warn(`[Worker] No handler registered for type "${event.type}" on event ${event.id}, marking as error`);
     try {
-      await setEventStatus(event.id, "error", `No handler registered for type "${event.type}"`);
+      await finishEvent(event.id, TERMINAL_STATE.ERROR, `No handler registered for type "${event.type}"`);
     } catch (err) {
       console.error(`[Worker] Failed to update event ${event.id}:`, err);
     }
@@ -122,12 +119,12 @@ const processEvent = async (event: WebhookEvent): Promise<void> => {
   const elapsed = Date.now() - startedAt;
 
   try {
-    await setEventStatus(
+    await finishEvent(
       event.id,
-      result.success ? "success" : "error",
+      result.success ? TERMINAL_STATE.SUCCESS : TERMINAL_STATE.ERROR,
       result.message,
     );
-    console.info(`[Worker] Event ${event.id} finished: ${result.success ? "success" : "error"} (${elapsed}ms) — ${result.message}`);
+    console.info(`[Worker] Event ${event.id} finished: ${result.success ? TERMINAL_STATE.SUCCESS : TERMINAL_STATE.ERROR} (${elapsed}ms) — ${result.message}`);
   } catch (err) {
     console.error(`[Worker] Failed to update event ${event.id}:`, err);
   }

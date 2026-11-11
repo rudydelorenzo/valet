@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWebhookByToken } from "@/lib/db/webhooks";
 import { getWebhookEvent } from "@/lib/db/webhook-events";
+import { listEventStepsForEvent } from "@/lib/db/webhook-event-steps";
+import { getEventMessage } from "@/lib/webhook-events";
 import { json } from "@/lib/http";
+import { TERMINAL_STATE } from "@/lib/constants";
+import { statusFromSteps } from "@/lib/worker/jobs/deploy/state";
 import {
   ApiErrorSchema,
   DeployStatusSchema,
@@ -39,16 +43,21 @@ export async function GET(
     return json(ApiErrorSchema, { error: "Event not found" }, { status: 404 });
   }
 
+  // State lives in the step log — the status is its projection, and the
+  // outcome message rides on the terminal row.
+  const status = statusFromSteps(await listEventStepsForEvent(event.id));
+  const message = (await getEventMessage(event.id)) ?? undefined;
+
   const statusCode =
-    event.status === "success"
+    status === TERMINAL_STATE.SUCCESS
       ? 200
-      : event.status === "error"
+      : status === TERMINAL_STATE.ERROR
         ? 502
         : 202; // queued or running
 
   const isPlainText = request.headers.get("accept")?.includes("text/plain");
   if (isPlainText) {
-    return new NextResponse(event.status, {
+    return new NextResponse(status, {
       status: statusCode,
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
@@ -59,7 +68,7 @@ export async function GET(
 
   return json(
     DeployStatusSchema,
-    { status: event.status, message: event.message ?? undefined },
+    { status, message },
     {
       status: statusCode,
       headers: { "Cache-Control": "no-store" },

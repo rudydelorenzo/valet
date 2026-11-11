@@ -1,13 +1,42 @@
-import { db } from "@/lib/db";
-import { webhookEvents, webhooks, portainerInstances } from "@/lib/db/schema";
-import { eq, and, desc, asc, lte } from "drizzle-orm";
-import { EVENT_STATUS } from "@/lib/constants";
+import { db, type DbExecutor } from "@/lib/db";
+import {
+  webhookEvents,
+  webhooks,
+  portainerInstances,
+} from "@/lib/db/schema";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { lastEventStep } from "./webhook-event-steps";
+import type { EventStepName } from "@/lib/constants";
 
-// Row type re-exported for internal consumers (e.g. the worker) that
-// process events with their full domain fields (webhookId, etc.).
-export type { WebhookEvent } from "@/lib/db/schema";
+/** Insert an event row. Opening its step log is the caller's job. */
+export const insertWebhookEvent = (
+  webhookId: string,
+  type: string,
+  triggerSource: string,
+  tx: DbExecutor = db,
+) => {
+  return tx
+    .insert(webhookEvents)
+    .values({
+      webhookId,
+      type,
+      triggerSource,
+    })
+    .returning()
+    .get();
+};
 
-// ── Read ──────────────────────────────────────────────────────────
+/** Events whose latest step is one of `steps`, oldest first. */
+export const listEventsAtSteps = async (steps: EventStepName[], limit?: number) => {
+  const query = db
+    .select()
+    .from(webhookEvents)
+    // sql.join needs an explicit separator — with none it concatenates
+    // the chunks ("IN (????)"), which SQLite rejects.
+    .where(sql`${lastEventStep} IN (${sql.join(steps.map((s) => sql`${s}`), sql`, `)})`)
+    .orderBy(asc(webhookEvents.createdAt));
+  return limit !== undefined ? query.limit(limit) : query;
+};
 
 /** Fetch an event by ID, scoped to a specific webhook. */
 export const getWebhookEvent = async (eventId: string, webhookId: string) => {
@@ -15,8 +44,6 @@ export const getWebhookEvent = async (eventId: string, webhookId: string) => {
     .select({
       id: webhookEvents.id,
       type: webhookEvents.type,
-      status: webhookEvents.status,
-      message: webhookEvents.message,
       triggerSource: webhookEvents.triggerSource,
       createdAt: webhookEvents.createdAt,
     })
@@ -27,6 +54,16 @@ export const getWebhookEvent = async (eventId: string, webhookId: string) => {
         eq(webhookEvents.webhookId, webhookId),
       ),
     )
+    .limit(1);
+  return event ?? null;
+};
+
+/** Fetch the full event row by ID alone. */
+export const getWebhookEventById = async (eventId: string) => {
+  const [event] = await db
+    .select()
+    .from(webhookEvents)
+    .where(eq(webhookEvents.id, eventId))
     .limit(1);
   return event ?? null;
 };
@@ -46,9 +83,7 @@ export const listWebhookEventsForUser = async (userId: string, limit = 20) => {
   return db
     .select({
       id: webhookEvents.id,
-      status: webhookEvents.status,
       type: webhookEvents.type,
-      message: webhookEvents.message,
       triggerSource: webhookEvents.triggerSource,
       createdAt: webhookEvents.createdAt,
       webhookName: webhooks.name,
@@ -60,74 +95,4 @@ export const listWebhookEventsForUser = async (userId: string, limit = 20) => {
     .where(eq(webhooks.userId, userId))
     .orderBy(desc(webhookEvents.createdAt))
     .limit(limit);
-};
-
-// ── Write ─────────────────────────────────────────────────────────
-
-/** Enqueue a new event for a webhook. */
-export const createEvent = async (
-  webhookId: string,
-  type: string,
-  triggerSource: string,
-) => {
-  const [event] = await db
-    .insert(webhookEvents)
-    .values({
-      webhookId,
-      type,
-      status: EVENT_STATUS.QUEUED,
-      triggerSource,
-    })
-    .returning();
-  return event;
-};
-
-/** Update an event's status and optional message. */
-export const setEventStatus = async (
-  eventId: string,
-  status: string,
-  message?: string,
-) => {
-  await db
-    .update(webhookEvents)
-    .set({ status, message: message ?? null })
-    .where(eq(webhookEvents.id, eventId));
-};
-
-/**
- * Atomically claim the oldest queued event (across all webhooks).
- * Returns the full event row, or null if the queue is empty.
- */
-export const claimNextEvent = async () => {
-  const [event] = await db
-    .select()
-    .from(webhookEvents)
-    .where(eq(webhookEvents.status, EVENT_STATUS.QUEUED))
-    .orderBy(asc(webhookEvents.createdAt))
-    .limit(1);
-
-  if (!event) return null;
-
-  await db
-    .update(webhookEvents)
-    .set({ status: EVENT_STATUS.RUNNING })
-    .where(eq(webhookEvents.id, event.id));
-
-  return event;
-};
-
-/** Mark stale "running" events as error (e.g. after a server restart). */
-export const cleanupStaleEvents = async (staleThreshold: Date) => {
-  await db
-    .update(webhookEvents)
-    .set({
-      status: "error",
-      message: "Deploy interrupted or timed out",
-    })
-    .where(
-      and(
-        eq(webhookEvents.status, EVENT_STATUS.RUNNING),
-        lte(webhookEvents.createdAt, staleThreshold),
-      ),
-    );
 };

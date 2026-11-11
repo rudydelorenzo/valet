@@ -4,7 +4,13 @@ The CI-facing endpoints under `/api/deploy`. All are authenticated by the secret
 
 ## `POST /api/deploy/{token}`
 
-Enqueue a deploy. Pre-flight-checks the instance and stack, then returns immediately.
+Enqueue a deploy. Pre-flight-checks the instance and stack (including that
+the stack is not inactive — deploys to inactive stacks are refused), then
+returns immediately. Deploys are bounded by the webhook's deploy timeout
+(see the webhook settings): once the event is claimed for processing, if
+the stack has not reported a successful deploy within that window the
+event is marked failed with a `timed out` message. Time spent waiting in
+the queue does not count against the window.
 
 ```json
 {
@@ -40,4 +46,8 @@ Poll deploy progress. With `Accept: text/plain` you get just the status word; ot
 
 ## `GET /api/deploy/{token}/events/{eventId}`
 
-Full event details (status, trigger source, timestamps, error message).
+Full event details: status, trigger source, timestamps, and `steps` — the
+complete append-only step history (`created → queued → claimed → fetching
+→ deploying → verifying → success|error`, with `queued` as the pickable
+marker), with the outcome message on the terminal row and the pre-PUT
+evidence snapshot on the `deploying` row.

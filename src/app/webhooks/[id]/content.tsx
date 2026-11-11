@@ -8,6 +8,8 @@ import { EventLog } from "@/components/EventLog";
 import { LogoBackButton } from "@/components/ui/logo-back-button";
 import { InstanceIcon } from "@/components/ui/instance-icon";
 import { Toggle } from "@/components/ui/toggle";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { DeployIntegrationDialog } from "@/components/deploy-integration/DeployIntegrationDialog";
 import { useEnvironments } from "@/hooks/use-environments";
 import { PillBadge } from "@/components/ui/pill-badge";
@@ -33,6 +35,18 @@ const WebhookDetailContent = ({
   const [triggering, setTriggering] = useState(false);
   const [eventLogKey, setEventLogKey] = useState(0);
   const [integrationOpen, setIntegrationOpen] = useState(false);
+  const [timeoutValue, setTimeoutValue] = useState("");
+  const [savingTimeout, setSavingTimeout] = useState(false);
+
+  // Sync the timeout input when the webhook (re)loads — adjust during
+  // render on the prop change (React's sanctioned pattern), not in an effect.
+  const [prevWebhook, setPrevWebhook] = useState<WebhookDetail | null>(null);
+  if (webhook !== prevWebhook) {
+    setPrevWebhook(webhook);
+    if (webhook) {
+      setTimeoutValue(String(webhook.deployTimeoutSeconds));
+    }
+  }
 
   const { environments } = useEnvironments(
     webhook?.portainerInstanceId ?? undefined,
@@ -109,6 +123,30 @@ const WebhookDetailContent = ({
     }
     // Nudge the event log to refresh
     setEventLogKey((k) => k + 1);
+  };
+
+  const handleSaveTimeout = async () => {
+    const seconds = Number(timeoutValue);
+    if (!Number.isInteger(seconds) || seconds < 10 || seconds > 86400) {
+      toast.error("Timeout must be an integer between 10 and 86400 seconds");
+      return;
+    }
+    setSavingTimeout(true);
+    try {
+      await fetch(`/api/webhooks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deployTimeoutSeconds: seconds }),
+      });
+      toast.success("Deploy timeout updated");
+      fetch(`/api/webhooks/${id}`)
+        .then((r) => r.json())
+        .then(setWebhook);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSavingTimeout(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -188,6 +226,41 @@ const WebhookDetailContent = ({
             POST to this URL to trigger a redeploy. The token authenticates the
             request.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1.5">
+            <Label htmlFor="deploy-timeout">Deploy timeout (seconds)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="deploy-timeout"
+                type="number"
+                min={10}
+                max={86400}
+                value={timeoutValue}
+                onChange={(e) => setTimeoutValue(e.target.value)}
+                className="max-w-40"
+              />
+              <Button
+                variant="outline"
+                onClick={handleSaveTimeout}
+                disabled={savingTimeout}
+              >
+                {savingTimeout ? "Saving…" : "Save"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              If the stack has not reported a successful deploy this long after
+              the webhook call, the deploy is marked failed.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

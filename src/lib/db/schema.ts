@@ -1,7 +1,12 @@
-import { sqliteTable, text, integer, unique } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, unique, index } from "drizzle-orm/sqlite-core";
 import type { InferSelectModel } from "drizzle-orm";
 import { id } from "../ids";
-import { DEFAULT_DEBOUNCE_SECONDS, DEFAULT_OIDC_SCOPES } from "@/lib/constants";
+import {
+  DEFAULT_DEBOUNCE_SECONDS,
+  DEFAULT_OIDC_SCOPES,
+  DEFAULT_DEPLOY_TIMEOUT_SECONDS,
+  type EventStepName,
+} from "@/lib/constants";
 
 // ── Table → prefix map ─────────────────────────────────────────────
 const TABLE_PREFIXES = {
@@ -10,6 +15,7 @@ const TABLE_PREFIXES = {
   portainer_instances: "inst",
   webhooks: "whk",
   webhook_events: "evt",
+  webhook_event_steps: "stp",
   oidc_providers: "prov",
 } as const;
 
@@ -95,6 +101,10 @@ export const webhooks = sqliteTable("webhooks", {
   endpointId: integer("endpoint_id").notNull(),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   debounceSeconds: integer("debounce_seconds").notNull().default(DEFAULT_DEBOUNCE_SECONDS),
+  /** How long after the webhook call a deploy may run before it's marked failed. */
+  deployTimeoutSeconds: integer("deploy_timeout_seconds")
+    .notNull()
+    .default(DEFAULT_DEPLOY_TIMEOUT_SECONDS),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -108,13 +118,43 @@ export const webhookEvents = sqliteTable("webhook_events", {
     .notNull()
     .references(() => webhooks.id, { onDelete: "cascade" }),
   type: text("type").notNull(),
-  status: text("status").notNull(),
-  message: text("message"),
   triggerSource: text("trigger_source").notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),
 });
+
+// ── Event step log ─────────────────────────────────────────────────
+
+/**
+ * Append-only log of the deploy state machine — the ONLY place state
+ * lives (the event row is identity + trigger; lifecycle status is
+ * derived from the log):
+ * created → queued → claimed → fetching → deploying → verifying →
+ * success|error, where `queued` is the pickable marker (written at birth
+ * and re-appended on recovery re-enqueue).
+ *
+ * One row per transition — the full history of an event is reconstructable
+ * from this table alone. Terminal rows (success|error) carry the outcome
+ * message in `data`; the `deploying` row carries the pre-PUT evidence
+ * snapshot. Nothing is ever updated here, only inserted.
+ */
+export const webhookEventSteps = sqliteTable(
+  "webhook_event_steps",
+  {
+    id: text("id").primaryKey().$defaultFn(prefixedId("webhook_event_steps")),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => webhookEvents.id, { onDelete: "cascade" }),
+    step: text("step").$type<EventStepName>().notNull(),
+    /** JSON payload: the pre-PUT snapshot on `deploying`, { message } on terminal rows. */
+    data: text("data"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index("webhook_event_steps_event_idx").on(t.eventId, t.createdAt)],
+);
 
 // ── Inferred types ────────────────────────────────────────────────
 
@@ -122,4 +162,5 @@ export type User = InferSelectModel<typeof users>;
 export type PortainerInstance = InferSelectModel<typeof portainerInstances>;
 export type Webhook = InferSelectModel<typeof webhooks>;
 export type WebhookEvent = InferSelectModel<typeof webhookEvents>;
+export type WebhookEventStep = InferSelectModel<typeof webhookEventSteps>;
 export type OidcProvider = InferSelectModel<typeof oidcProviders>;
