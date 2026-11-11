@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { PortainerInstance } from "@/lib/db/schema";
 import { getPortainerInstance } from "@/lib/db/portainer-instances";
 
 /**
@@ -12,7 +13,7 @@ import { getPortainerInstance } from "@/lib/db/portainer-instances";
  */
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: PortainerInstance["id"] }> },
 ) {
   const { id } = await params;
 

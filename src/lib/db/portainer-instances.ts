@@ -1,33 +1,15 @@
 import { db } from "@/lib/db";
-import { portainerInstances, type PortainerInstance } from "@/lib/db/schema";
+import { portainerInstances, type PortainerInstance, type User } from "@/lib/db/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
-import type { Instance } from "@/types";
-
-// ── Public shape ───────────────────────────────────────────────────
-
-/**
- * Whitelist projection that strips the access token and serializes the
- * instance into its application shape (see ./types) before it is returned
- * over the API. Compile-checked: when the schema gains a column, this
- * must be updated or the build fails.
- */
-export const toPublicInstance = (instance: PortainerInstance): Instance => ({
-  id: instance.id,
-  name: instance.name,
-  url: instance.url,
-  insecureTls: instance.insecureTls,
-  hasToken: Boolean(instance.token),
-  createdAt: instance.createdAt.toISOString(),
-});
 
 // ── Read ──────────────────────────────────────────────────────────
 
 /**
  * Fetch an instance by ID (full row, including the token — needed to
- * call the Portainer API). Pass through `toPublicInstance` before
- * returning one over the API.
+ * call the Portainer API). Pass through `toPublicInstance` (lib/helpers)
+ * before returning one over the API.
  */
-export const getPortainerInstance = async (id: string) => {
+export const getPortainerInstance = async (id: PortainerInstance["id"]) => {
   const [instance] = await db
     .select()
     .from(portainerInstances)
@@ -41,8 +23,8 @@ export const getPortainerInstance = async (id: string) => {
  * those instances are returned.
  */
 export const listPortainerInstancesByUser = async (
-  userId: string,
-  ids?: string[],
+  userId: User["id"],
+  ids?: PortainerInstance["id"][],
 ) => {
   return db
     .select()
@@ -62,11 +44,11 @@ export const listPortainerInstancesByUser = async (
 
 /** Create a new Portainer instance. */
 export const createPortainerInstance = async (data: {
-  userId: string;
-  name: string;
-  url: string;
-  token: string;
-  insecureTls?: boolean;
+  userId: User["id"];
+  name: PortainerInstance["name"];
+  url: PortainerInstance["url"];
+  token: PortainerInstance["token"];
+  insecureTls?: PortainerInstance["insecureTls"];
 }) => {
   const [instance] = await db
     .insert(portainerInstances)
@@ -77,12 +59,12 @@ export const createPortainerInstance = async (data: {
 
 /** Patch an instance (name, url, token, insecureTls). */
 export const updatePortainerInstance = async (
-  id: string,
+  id: PortainerInstance["id"],
   updates: {
-    name?: string;
-    url?: string;
-    token?: string;
-    insecureTls?: boolean;
+    name?: PortainerInstance["name"];
+    url?: PortainerInstance["url"];
+    token?: PortainerInstance["token"];
+    insecureTls?: PortainerInstance["insecureTls"];
   },
 ): Promise<PortainerInstance | null> => {
   const [updated] = await db
@@ -94,7 +76,7 @@ export const updatePortainerInstance = async (
 };
 
 /** Delete an instance by ID (cascades to its webhooks). */
-export const deletePortainerInstance = async (id: string) => {
+export const deletePortainerInstance = async (id: PortainerInstance["id"]) => {
   const [deleted] = await db
     .delete(portainerInstances)
     .where(eq(portainerInstances.id, id))

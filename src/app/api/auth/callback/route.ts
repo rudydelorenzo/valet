@@ -7,7 +7,7 @@ import {
   clearPKCECookie,
 } from "@/lib/auth/oidc";
 import { createSessionJwt } from "@/lib/auth/session";
-import { findOrCreateUser } from "@/lib/db/users";
+import { findOrCreateUser } from "@/lib/helpers/users";
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_SECONDS,

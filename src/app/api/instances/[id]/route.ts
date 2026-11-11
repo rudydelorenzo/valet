@@ -1,9 +1,10 @@
 import {
   deletePortainerInstance,
   getPortainerInstance,
-  toPublicInstance,
   updatePortainerInstance,
 } from "@/lib/db/portainer-instances";
+import { toPublicInstance } from "@/lib/helpers/portainer-instances";
+import type { PortainerInstance } from "@/lib/db/schema";
 import { requireAuth } from "@/lib/auth/guard";
 import { validateInstance } from "@/lib/portainer";
 import { json, parseBody } from "@/lib/http";
@@ -19,7 +20,7 @@ import type { Instance } from "@/types";
 
 export const GET = async (
   _request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: PortainerInstance["id"] }> },
 ): Promise<NextResponse<Instance | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;
@@ -36,7 +37,7 @@ export const GET = async (
 
 export const PATCH = async (
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: PortainerInstance["id"] }> },
 ): Promise<NextResponse<{ ok: boolean } | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;
@@ -85,7 +86,7 @@ export const PATCH = async (
 
 export const DELETE = async (
   _request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: PortainerInstance["id"] }> },
 ): Promise<NextResponse<{ ok: boolean } | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;

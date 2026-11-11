@@ -1,14 +1,13 @@
 import { getWebhook } from "@/lib/db/webhooks";
-import { createEvent, finishEvent, claimEventById } from "@/lib/webhook-events";
-import { EVENT_SOURCE, EVENT_TYPE, STACK_STATUS, TERMINAL_STATE } from "@/lib/constants";
+import { createEvent, finishEvent, claimEventById } from "@/lib/helpers/webhook-events";
+import { EVENT_SOURCE, EVENT_TYPE, TERMINAL_STATE } from "@/lib/constants";
 import { requireAuth } from "@/lib/auth/guard";
 import { getPortainerInstance } from "@/lib/db/portainer-instances";
-import { getStack } from "@/lib/portainer";
-import { consumeDeployEvent } from "@/lib/worker/jobs/deploy";
+import { consumeDeployEvent, preflightStack } from "@/lib/worker/jobs/deploy";
 import { ensureWorker } from "@/lib/worker";
 import { json } from "@/lib/http";
-import { inactiveMessage } from "@/lib/worker/jobs/deploy/state";
 import { ApiErrorSchema, DeployResultSchema, type ApiError } from "@/types/api";
+import type { Webhook, WebhookEvent } from "@/lib/db/schema";
 import type { NextResponse } from "next/server";
 
 /**
@@ -17,9 +16,9 @@ import type { NextResponse } from "next/server";
  */
 export const POST = async (
   _request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: Webhook["id"] }> },
 ): Promise<
-  NextResponse<{ success: boolean; message: string; eventId: string } | ApiError>
+  NextResponse<{ success: boolean; message: string; eventId: WebhookEvent["id"] } | ApiError>
 > => {
   const userId = await requireAuth();
   const { id: webhookId } = await params;
@@ -39,26 +38,9 @@ export const POST = async (
     );
   }
 
-  const stack = await getStack(
-    instance.url,
-    instance.token,
-    instance.insecureTls,
-    webhook.stackId,
-    webhook.endpointId,
-  );
-  if (!stack) {
-    return json(
-      ApiErrorSchema,
-      { error: "Stack not found — it may have been deleted" },
-      { status: 424 },
-    );
-  }
-  if (stack.Status === STACK_STATUS.INACTIVE) {
-    return json(
-      ApiErrorSchema,
-      { error: inactiveMessage("preflight") },
-      { status: 424 },
-    );
+  const preflight = await preflightStack(instance, webhook, "preflight");
+  if ("error" in preflight) {
+    return json(ApiErrorSchema, { error: preflight.error }, { status: 424 });
   }
 
   const event = await createEvent(webhook.id, EVENT_TYPE.DEPLOY, EVENT_SOURCE.MANUAL);

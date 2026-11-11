@@ -193,8 +193,8 @@ export const getStack = async (
   baseUrl: string,
   token: string,
   insecureTls: boolean,
-  stackId: number,
-  endpointId: number,
+  stackId: PortainerStack["Id"],
+  endpointId: PortainerEnvironment["Id"],
 ): Promise<PortainerStack | null> => {
   try {
     return normalizeStack(
@@ -225,7 +225,7 @@ export const getStackFile = async (
   baseUrl: string,
   token: string,
   insecureTls: boolean,
-  stackId: number,
+  stackId: PortainerStack["Id"],
 ): Promise<{ StackFileContent: string }> => {
   return portainerFetch<{ StackFileContent: string }>(
     baseUrl,
@@ -249,8 +249,8 @@ export const updateStack = async (
   baseUrl: string,
   token: string,
   insecureTls: boolean,
-  stackId: number,
-  endpointId: number,
+  stackId: PortainerStack["Id"],
+  endpointId: PortainerEnvironment["Id"],
   body: { stackFileContent: string; env: Array<{ name: string; value: string }> },
 ): Promise<void> => {
   // Field names use PascalCase per the official API docs.
@@ -290,7 +290,7 @@ export const getStackContainers = async (
   baseUrl: string,
   token: string,
   insecureTls: boolean,
-  endpointId: number,
+  endpointId: PortainerEnvironment["Id"],
   stackName: string,
 ): Promise<DockerContainerSummary[]> => {
   try {

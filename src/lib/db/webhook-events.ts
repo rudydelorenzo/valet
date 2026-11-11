@@ -3,6 +3,9 @@ import {
   webhookEvents,
   webhooks,
   portainerInstances,
+  type Webhook,
+  type WebhookEvent,
+  type User,
 } from "@/lib/db/schema";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { lastEventStep } from "./webhook-event-steps";
@@ -10,9 +13,9 @@ import type { EventStepName } from "@/lib/constants";
 
 /** Insert an event row. Opening its step log is the caller's job. */
 export const insertWebhookEvent = (
-  webhookId: string,
-  type: string,
-  triggerSource: string,
+  webhookId: Webhook["id"],
+  type: WebhookEvent["type"],
+  triggerSource: WebhookEvent["triggerSource"],
   tx: DbExecutor = db,
 ) => {
   return tx
@@ -39,7 +42,7 @@ export const listEventsAtSteps = async (steps: EventStepName[], limit?: number) 
 };
 
 /** Fetch an event by ID, scoped to a specific webhook. */
-export const getWebhookEvent = async (eventId: string, webhookId: string) => {
+export const getWebhookEvent = async (eventId: WebhookEvent["id"], webhookId: Webhook["id"]) => {
   const [event] = await db
     .select({
       id: webhookEvents.id,
@@ -59,7 +62,7 @@ export const getWebhookEvent = async (eventId: string, webhookId: string) => {
 };
 
 /** Fetch the full event row by ID alone. */
-export const getWebhookEventById = async (eventId: string) => {
+export const getWebhookEventById = async (eventId: WebhookEvent["id"]) => {
   const [event] = await db
     .select()
     .from(webhookEvents)
@@ -69,7 +72,7 @@ export const getWebhookEventById = async (eventId: string) => {
 };
 
 /** List events for a webhook, most recent first. */
-export const listWebhookEvents = async (webhookId: string, limit = 100) => {
+export const listWebhookEvents = async (webhookId: Webhook["id"], limit = 100) => {
   return db
     .select()
     .from(webhookEvents)
@@ -79,7 +82,7 @@ export const listWebhookEvents = async (webhookId: string, limit = 100) => {
 };
 
 /** List recent events across all of a user's webhooks, most recent first. */
-export const listWebhookEventsForUser = async (userId: string, limit = 20) => {
+export const listWebhookEventsForUser = async (userId: User["id"], limit = 20) => {
   return db
     .select({
       id: webhookEvents.id,

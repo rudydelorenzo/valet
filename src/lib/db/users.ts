@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
-import { users, userOidcLinks, type User } from "@/lib/db/schema";
+import { users, userOidcLinks, type User, type UserOidcLink } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 // ── Read ──────────────────────────────────────────────────────────
 
 /** Fetch a user by ID. */
-export const getUser = async (id: string) => {
+export const getUser = async (id: User["id"]) => {
   const [user] = await db
     .select()
     .from(users)
@@ -15,7 +15,7 @@ export const getUser = async (id: string) => {
 };
 
 /** Fetch a user by email address. */
-export const getUserByEmail = async (email: string) => {
+export const getUserByEmail = async (email: User["email"]) => {
   const [user] = await db
     .select()
     .from(users)
@@ -29,18 +29,13 @@ export const listUsers = async () => {
   return db.select().from(users).orderBy(desc(users.createdAt));
 };
 
-/** Count users with the admin flag (last-admin guard). */
-export const countAdmins = async (): Promise<number> => {
-  return db.$count(users, eq(users.isAdmin, true));
-};
-
 // ── Write ─────────────────────────────────────────────────────────
 
 /** Create a new user. */
 export const createUser = async (data: {
-  email: string;
-  name: string;
-  isAdmin?: boolean;
+  email: User["email"];
+  name: User["name"];
+  isAdmin?: User["isAdmin"];
 }) => {
   const [user] = await db
     .insert(users)
@@ -51,8 +46,8 @@ export const createUser = async (data: {
 
 /** Patch a user (currently just the admin flag). */
 export const updateUser = async (
-  id: string,
-  updates: { isAdmin: boolean },
+  id: User["id"],
+  updates: { isAdmin: User["isAdmin"] },
 ): Promise<User | null> => {
   const [updated] = await db
     .update(users)
@@ -64,23 +59,13 @@ export const updateUser = async (
 
 // ── OIDC identity links ───────────────────────────────────────────
 
-/**
- * Look up or create a user from OIDC userinfo.
- * 1. Match by (providerId, oidcSub) → existing link → return user
- * 2. Match by email → existing user → create link → return user
- * 3. No match → create user + link → return user
- */
-export const findOrCreateUser = async (params: {
-  email: string;
-  name: string;
-  oidcSub: string;
-  providerId: string;
-}): Promise<{ user: User; isNew: boolean }> => {
-  const { email, name, oidcSub, providerId } = params;
-
-  // 1. Direct link match
-  const [existingLink] = await db
-    .select({ userId: userOidcLinks.userId })
+/** Fetch a user↔provider link by (provider, subject). */
+export const getUserOidcLink = async (
+  providerId: UserOidcLink["providerId"],
+  oidcSub: UserOidcLink["oidcSub"],
+): Promise<UserOidcLink | null> => {
+  const [link] = await db
+    .select()
     .from(userOidcLinks)
     .where(
       and(
@@ -89,38 +74,14 @@ export const findOrCreateUser = async (params: {
       ),
     )
     .limit(1);
+  return link ?? null;
+};
 
-  if (existingLink) {
-    const user = await getUser(existingLink.userId);
-    return { user: user!, isNew: false };
-  }
-
-  // 2. Email match — link to existing user
-  const existingUser = await getUserByEmail(email);
-
-  if (existingUser) {
-    await db.insert(userOidcLinks).values({
-      userId: existingUser.id,
-      providerId,
-      oidcSub,
-    });
-    return { user: existingUser, isNew: false };
-  }
-
-  // 3. Brand new user — the first user gets admin
-  const isFirstUser = (await db.select({ id: users.id }).from(users).limit(1)).length === 0;
-
-  const newUser = await createUser({
-    email,
-    name,
-    isAdmin: isFirstUser,
-  });
-
-  await db.insert(userOidcLinks).values({
-    userId: newUser.id,
-    providerId,
-    oidcSub,
-  });
-
-  return { user: newUser, isNew: true };
+/** Link a user to an OIDC identity. */
+export const insertUserOidcLink = async (
+  userId: User["id"],
+  providerId: UserOidcLink["providerId"],
+  oidcSub: UserOidcLink["oidcSub"],
+): Promise<void> => {
+  await db.insert(userOidcLinks).values({ userId, providerId, oidcSub });
 };

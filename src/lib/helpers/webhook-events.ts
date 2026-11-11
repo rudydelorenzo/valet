@@ -17,6 +17,7 @@ import {
   insertWebhookEventSteps,
   listEventStepsForEvent,
 } from "@/lib/db/webhook-event-steps";
+import type { Webhook, WebhookEvent } from "@/lib/db/schema";
 import type { EventStepData } from "@/types";
 
 // ── The event lifecycle ────────────────────────────────────────────
@@ -33,9 +34,9 @@ import type { EventStepData } from "@/types";
  * has no derivable status.
  */
 export const createEvent = async (
-  webhookId: string,
-  type: string,
-  triggerSource: string,
+  webhookId: Webhook["id"],
+  type: WebhookEvent["type"],
+  triggerSource: WebhookEvent["triggerSource"],
 ) =>
   withTransaction((tx) => {
     const event = insertWebhookEvent(webhookId, type, triggerSource, tx);
@@ -56,7 +57,7 @@ export const createEvent = async (
  * against.
  */
 export const recordEventStep = async (
-  eventId: string,
+  eventId: WebhookEvent["id"],
   step: DeployStepName,
   data?: EventStepData,
 ) => {
@@ -69,7 +70,7 @@ export const recordEventStep = async (
  * insert IS the finish.
  */
 export const finishEvent = async (
-  eventId: string,
+  eventId: WebhookEvent["id"],
   outcome: TerminalState,
   message?: string,
 ) => {
@@ -82,7 +83,7 @@ export const finishEvent = async (
  * re-enqueue). The accessor's guarded INSERT lets exactly one claimer
  * win — the worker loop and the manual trigger share one connection.
  */
-const tryClaim = (eventId: string): Promise<boolean> =>
+const tryClaim = (eventId: WebhookEvent["id"]): Promise<boolean> =>
   insertWebhookEventStepIfLast(
     eventId,
     DEPLOY_STEP.CLAIMED,
@@ -98,7 +99,7 @@ const tryClaim = (eventId: string): Promise<boolean> =>
  * without it, the worker loop would claim the same queued event on its
  * next poll and deploy the stack twice.
  */
-export const claimEventById = async (eventId: string) => {
+export const claimEventById = async (eventId: WebhookEvent["id"]) => {
   if (!(await tryClaim(eventId))) return null;
   return getWebhookEventById(eventId);
 };
@@ -137,7 +138,7 @@ export const requeueInterrupted = async () => {
  * step row (which the log records last). Null while the event is still
  * running.
  */
-export const getEventMessage = async (eventId: string): Promise<string | null> => {
+export const getEventMessage = async (eventId: WebhookEvent["id"]): Promise<string | null> => {
   const steps = await listEventStepsForEvent(eventId);
   const data = steps.at(-1)?.data ?? null;
   return data !== null && "message" in data ? data.message : null;

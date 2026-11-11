@@ -1,10 +1,10 @@
 import { z } from "zod";
+import { listWebhooksByUser } from "@/lib/db/webhooks";
 import {
-  listWebhooksByUser,
   createWebhook,
   getWebhookHealth,
   computeWebhookStatus,
-} from "@/lib/db/webhooks";
+} from "@/lib/helpers/webhooks";
 import { getPortainerInstance } from "@/lib/db/portainer-instances";
 import { requireAuth } from "@/lib/auth/guard";
 import { json, parseBody } from "@/lib/http";

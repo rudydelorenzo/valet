@@ -1,9 +1,6 @@
 import { z } from "zod";
-import {
-  createProvider,
-  listProviders,
-  toPublicProvider,
-} from "@/lib/db/oidc-providers";
+import { listProviders } from "@/lib/db/oidc-providers";
+import { createProvider, toPublicProvider } from "@/lib/helpers/oidc-providers";
 import { discover } from "@/lib/auth/oidc";
 import { requireAdmin } from "@/lib/auth/guard";
 import { json, parseBody } from "@/lib/http";

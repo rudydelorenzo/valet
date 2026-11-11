@@ -6,7 +6,7 @@ export async function register() {
 
     // Recover events orphaned by a previous process death. Runs once per
     // boot, before the worker starts, so nothing can be in flight yet.
-    const { requeueInterrupted } = await import("./lib/webhook-events");
+    const { requeueInterrupted } = await import("./lib/helpers/webhook-events");
     await requeueInterrupted();
 
     // Start the background worker

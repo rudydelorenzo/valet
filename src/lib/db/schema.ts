@@ -159,6 +159,7 @@ export const webhookEventSteps = sqliteTable(
 // ── Inferred types ────────────────────────────────────────────────
 
 export type User = InferSelectModel<typeof users>;
+export type UserOidcLink = InferSelectModel<typeof userOidcLinks>;
 export type PortainerInstance = InferSelectModel<typeof portainerInstances>;
 export type Webhook = InferSelectModel<typeof webhooks>;
 export type WebhookEvent = InferSelectModel<typeof webhookEvents>;

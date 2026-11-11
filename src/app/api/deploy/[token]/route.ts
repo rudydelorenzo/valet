@@ -1,12 +1,11 @@
 import { getWebhookByToken } from "@/lib/db/webhooks";
-import { createEvent } from "@/lib/webhook-events";
-import { EVENT_SOURCE, EVENT_TYPE, STACK_STATUS } from "@/lib/constants";
+import { createEvent } from "@/lib/helpers/webhook-events";
+import { EVENT_SOURCE, EVENT_TYPE } from "@/lib/constants";
 import { getPortainerInstance } from "@/lib/db/portainer-instances";
-import { getStack } from "@/lib/portainer";
+import { preflightStack } from "@/lib/worker/jobs/deploy";
 import { getDeployUrl, getStatusUrl, getEventUrl } from "@/lib/webhook-urls";
 import { ensureWorker } from "@/lib/worker";
 import { json } from "@/lib/http";
-import { inactiveMessage } from "@/lib/worker/jobs/deploy/state";
 import {
   ApiErrorSchema,
   DeployReceiptSchema,
@@ -43,26 +42,9 @@ export const POST = async (
     return json(ApiErrorSchema, { error: "Instance not found" }, { status: 424 });
   }
 
-  const stack = await getStack(
-    instance.url,
-    instance.token,
-    instance.insecureTls,
-    webhook.stackId,
-    webhook.endpointId,
-  );
-  if (!stack) {
-    return json(
-      ApiErrorSchema,
-      { error: "Stack not found — it may have been deleted" },
-      { status: 424 },
-    );
-  }
-  if (stack.Status === STACK_STATUS.INACTIVE) {
-    return json(
-      ApiErrorSchema,
-      { error: inactiveMessage("preflight") },
-      { status: 424 },
-    );
+  const preflight = await preflightStack(instance, webhook, "preflight");
+  if ("error" in preflight) {
+    return json(ApiErrorSchema, { error: preflight.error }, { status: 424 });
   }
 
   const event = await createEvent(webhook.id, EVENT_TYPE.DEPLOY, EVENT_SOURCE.WEBHOOK);

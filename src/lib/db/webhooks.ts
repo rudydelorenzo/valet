@@ -1,31 +1,18 @@
 import { db } from "@/lib/db";
-import { webhooks, portainerInstances, webhookEvents } from "@/lib/db/schema";
+import {
+  webhooks,
+  portainerInstances,
+  webhookEvents,
+  type Webhook,
+  type User,
+} from "@/lib/db/schema";
 import { lastEventStep } from "./webhook-event-steps";
 import { eq, desc, and, inArray, gte } from "drizzle-orm";
-import {
-    DEFAULT_DEBOUNCE_SECONDS, DEFAULT_DEPLOY_TIMEOUT_SECONDS,
-    DEGRADATION_THRESHOLD, DEGRADATION_WINDOW_MS,
-    TERMINAL_STATE,
-    WEBHOOK_STATUS,
-    type WebhookStatus,
-} from "@/lib/constants";
-import crypto from "node:crypto";
-
-
-/** Compute the derived status from enabled + degraded. */
-export const computeWebhookStatus = (
-  enabled: boolean,
-  degraded: boolean,
-): WebhookStatus => {
-  if (!enabled) return WEBHOOK_STATUS.DISABLED;
-  if (degraded) return WEBHOOK_STATUS.DEGRADED;
-  return WEBHOOK_STATUS.ACTIVE;
-};
 
 // ── Read ──────────────────────────────────────────────────────────
 
 /** Fetch a webhook by its public token (inbound hook auth). */
-export const getWebhookByToken = async (token: string) => {
+export const getWebhookByToken = async (token: Webhook["token"]) => {
   const [webhook] = await db
     .select()
     .from(webhooks)
@@ -35,20 +22,14 @@ export const getWebhookByToken = async (token: string) => {
 };
 
 /**
- * Compute the 24h failure rate for the given webhooks.
- * Returns a map of webhook ID → { total, failed, degraded }.
+ * Rows for the health computation: each recent event's webhook and its
+ * latest step. The failure-rate math lives in lib/helpers/webhooks.
  */
-export const getWebhookHealth = async (webhookIds: string[]) => {
-  const health = new Map<
-    string,
-    { total: number; failed: number; degraded: boolean }
-  >();
-
-  if (webhookIds.length === 0) return health;
-
-  const since = new Date(Date.now() - DEGRADATION_WINDOW_MS);
-
-  const events = await db
+export const listRecentWebhookEvents = async (
+  webhookIds: Webhook["id"][],
+  since: Date,
+) => {
+  return db
     .select({
       webhookId: webhookEvents.webhookId,
       lastStep: lastEventStep,
@@ -60,31 +41,13 @@ export const getWebhookHealth = async (webhookIds: string[]) => {
         gte(webhookEvents.createdAt, since),
       ),
     );
-
-  for (const evt of events) {
-    const entry = health.get(evt.webhookId) ?? {
-      total: 0,
-      failed: 0,
-      degraded: false,
-    };
-    entry.total++;
-    if (evt.lastStep === TERMINAL_STATE.ERROR) entry.failed++;
-    health.set(evt.webhookId, entry);
-  }
-
-  for (const entry of health.values()) {
-    entry.degraded =
-      entry.total > 0 && entry.failed / entry.total > DEGRADATION_THRESHOLD;
-  }
-
-  return health;
 };
 
 /**
  * Fetch a webhook by ID, joined with the Portainer instance name.
  * Returns userId so callers can do ownership checks.
  */
-export const getWebhook = async (id: string) => {
+export const getWebhook = async (id: Webhook["id"]) => {
   const [row] = await db
     .select({
       id: webhooks.id,
@@ -111,7 +74,7 @@ export const getWebhook = async (id: string) => {
 };
 
 /** List all webhooks for a user, with instance names. */
-export const listWebhooksByUser = async (userId: string) => {
+export const listWebhooksByUser = async (userId: User["id"]) => {
   return db
     .select({
       id: webhooks.id,
@@ -136,35 +99,21 @@ export const listWebhooksByUser = async (userId: string) => {
 
 // ── Write ─────────────────────────────────────────────────────────
 
-/** Create a new webhook with a random token. */
-export const createWebhook = async (data: {
-  userId: string;
-  name: string;
-  portainerInstanceId: string;
-  stackId: number;
-  endpointId: number;
-  debounceSeconds?: number;
-  deployTimeoutSeconds?: number;
-}) => {
-  const token = crypto.randomBytes(32).toString("base64url");
-
-  const [webhook] = await db
-    .insert(webhooks)
-    .values({
-      ...data,
-      token,
-      debounceSeconds: data.debounceSeconds ?? DEFAULT_DEBOUNCE_SECONDS,
-      deployTimeoutSeconds: data.deployTimeoutSeconds ?? DEFAULT_DEPLOY_TIMEOUT_SECONDS,
-    })
-    .returning();
-
+/** Insert a webhook row. */
+export const insertWebhook = async (values: typeof webhooks.$inferInsert) => {
+  const [webhook] = await db.insert(webhooks).values(values).returning();
   return webhook;
 };
 
 /** Patch a webhook (name, enabled, debounceSeconds, deployTimeoutSeconds). */
 export const updateWebhook = async (
-  id: string,
-  updates: { name?: string; enabled?: boolean; debounceSeconds?: number; deployTimeoutSeconds?: number },
+  id: Webhook["id"],
+  updates: {
+    name?: Webhook["name"];
+    enabled?: Webhook["enabled"];
+    debounceSeconds?: Webhook["debounceSeconds"];
+    deployTimeoutSeconds?: Webhook["deployTimeoutSeconds"];
+  },
 ) => {
   const [updated] = await db
     .update(webhooks)
@@ -175,7 +124,7 @@ export const updateWebhook = async (
 };
 
 /** Delete a webhook by ID. */
-export const deleteWebhook = async (id: string) => {
+export const deleteWebhook = async (id: Webhook["id"]) => {
   const [deleted] = await db
     .delete(webhooks)
     .where(eq(webhooks.id, id))

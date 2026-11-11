@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PortainerInstance } from "@/lib/db/schema";
 import { getPortainerInstance } from "@/lib/db/portainer-instances";
 import { listEnvironments } from "@/lib/portainer";
 import { requireAuth } from "@/lib/auth/guard";
@@ -12,7 +13,7 @@ const EnvironmentsSchema = z.array(EnvironmentSchema);
 
 export const GET = async (
   _request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: PortainerInstance["id"] }> },
 ): Promise<NextResponse<Environment[] | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;

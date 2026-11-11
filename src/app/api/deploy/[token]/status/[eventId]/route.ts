@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getWebhookByToken } from "@/lib/db/webhooks";
 import { getWebhookEvent } from "@/lib/db/webhook-events";
 import { listEventStepsForEvent } from "@/lib/db/webhook-event-steps";
-import { getEventMessage } from "@/lib/webhook-events";
+import { getEventMessage } from "@/lib/helpers/webhook-events";
 import { json } from "@/lib/http";
 import { TERMINAL_STATE } from "@/lib/constants";
 import { statusFromSteps } from "@/lib/worker/jobs/deploy/state";
+import type { WebhookEvent } from "@/lib/db/schema";
 import {
   ApiErrorSchema,
   DeployStatusSchema,
@@ -29,7 +30,7 @@ import {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ token: string; eventId: string }> },
+  { params }: { params: Promise<{ token: string; eventId: WebhookEvent["id"] }> },
 ): Promise<NextResponse<DeployStatus | ApiError | string>> {
   const { token, eventId } = await params;
 

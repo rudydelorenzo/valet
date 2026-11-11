@@ -1,3 +1,5 @@
+import type { WebhookEvent } from "@/lib/db/schema";
+
 /** Full URL to trigger a deploy. */
 export function getDeployUrl(origin: string, token: string): string {
   return `${origin}/api/deploy/${token}`;
@@ -7,7 +9,7 @@ export function getDeployUrl(origin: string, token: string): string {
 export function getStatusUrl(
   origin: string,
   token: string,
-  eventId: string,
+  eventId: WebhookEvent["id"],
 ): string {
   return `${origin}/api/deploy/${token}/status/${eventId}`;
 }
@@ -16,7 +18,7 @@ export function getStatusUrl(
 export function getEventUrl(
   origin: string,
   token: string,
-  eventId: string,
+  eventId: WebhookEvent["id"],
 ): string {
   return `${origin}/api/deploy/${token}/events/${eventId}`;
 }

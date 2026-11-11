@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Webhook } from "@/lib/db/schema";
 import { getWebhook } from "@/lib/db/webhooks";
 import { listWebhookEvents } from "@/lib/db/webhook-events";
 import { listEventStepsForEvents } from "@/lib/db/webhook-event-steps";
@@ -17,7 +18,7 @@ const EventsSchema = z.array(EventSchema);
  */
 export const GET = async (
   _request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: Webhook["id"] }> },
 ): Promise<NextResponse<Event[] | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;

@@ -2,6 +2,7 @@ import { db, type DbExecutor } from "@/lib/db";
 import {
   webhookEvents,
   webhookEventSteps,
+  type WebhookEvent,
   type WebhookEventStep,
 } from "@/lib/db/schema";
 import { eq, asc, sql } from "drizzle-orm";
@@ -27,6 +28,10 @@ const toEventStep = (row: WebhookEventStep): EventStep => {
   };
 };
 
+/** The stored text form of a step payload: JSON, or NULL when absent. */
+const serializeData = (data: EventStepData | undefined): string | null =>
+  data !== undefined ? JSON.stringify(data) : null;
+
 /**
  * The event's latest step (correlated to `webhookEvents.id`). State lives
  * ONLY in the step log, so every "what state is this in" question —
@@ -47,7 +52,7 @@ export const lastEventStep = sql<string>`(
  * callers deal only in EventStepData, never the stored text form.
  */
 export const insertWebhookEventStep = async (
-  eventId: string,
+  eventId: WebhookEvent["id"],
   step: EventStepName,
   data?: EventStepData,
   tx: DbExecutor = db,
@@ -55,7 +60,7 @@ export const insertWebhookEventStep = async (
   await tx.insert(webhookEventSteps).values({
     eventId,
     step,
-    data: data !== undefined ? JSON.stringify(data) : null,
+    data: serializeData(data),
   });
 };
 
@@ -69,7 +74,7 @@ export const insertWebhookEventStep = async (
  * landed, i.e. whether this caller won the race.
  */
 export const insertWebhookEventStepIfLast = async (
-  eventId: string,
+  eventId: WebhookEvent["id"],
   step: EventStepName,
   data: EventStepData | undefined,
   expectedLast: EventStepName,
@@ -77,7 +82,7 @@ export const insertWebhookEventStepIfLast = async (
   const result = await db.run(sql`
     INSERT INTO webhook_event_steps (id, event_id, step, data, created_at)
     SELECT ${id("stp")}, id, ${step},
-      ${data !== undefined ? JSON.stringify(data) : null},
+      ${serializeData(data)},
       ${Date.now()}
     FROM webhook_events
     WHERE id = ${eventId} AND ${lastEventStep} = ${expectedLast}
@@ -87,7 +92,7 @@ export const insertWebhookEventStepIfLast = async (
 
 /** Batch-append step rows (event birth, recovery re-enqueue). */
 export const insertWebhookEventSteps = (
-  rows: Array<{ eventId: string; step: EventStepName; data?: EventStepData }>,
+  rows: Array<{ eventId: WebhookEvent["id"]; step: EventStepName; data?: EventStepData }>,
   tx: DbExecutor = db,
 ) => {
   tx
@@ -96,7 +101,7 @@ export const insertWebhookEventSteps = (
       rows.map((r) => ({
         eventId: r.eventId,
         step: r.step,
-        data: r.data !== undefined ? JSON.stringify(r.data) : null,
+        data: serializeData(r.data),
       })),
     )
     .run();
@@ -110,7 +115,7 @@ export const insertWebhookEventSteps = (
  * and backfilled pairs are stamped identically, so insertion order is
  * the tiebreak.
  */
-export const listEventStepsForEvent = async (eventId: string): Promise<EventStep[]> => {
+export const listEventStepsForEvent = async (eventId: WebhookEvent["id"]): Promise<EventStep[]> => {
   const rows = await db
     .select()
     .from(webhookEventSteps)
@@ -124,9 +129,9 @@ export const listEventStepsForEvent = async (eventId: string): Promise<EventStep
  * routes attach these to their event responses.
  */
 export const listEventStepsForEvents = async (
-  eventIds: string[],
-): Promise<Map<string, EventStep[]>> => {
-  const grouped = new Map<string, EventStep[]>();
+  eventIds: WebhookEvent["id"][],
+): Promise<Map<WebhookEvent["id"], EventStep[]>> => {
+  const grouped = new Map<WebhookEvent["id"], EventStep[]>();
   for (const id of eventIds) {
     grouped.set(id, await listEventStepsForEvent(id));
   }

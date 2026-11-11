@@ -5,6 +5,7 @@ import { json } from "@/lib/http";
 import { EventSchema } from "@/types";
 import { statusFromSteps } from "@/lib/worker/jobs/deploy/state";
 import { ApiErrorSchema, type ApiError } from "@/types/api";
+import type { WebhookEvent } from "@/lib/db/schema";
 import type { NextResponse } from "next/server";
 import type { Event } from "@/types";
 
@@ -15,7 +16,7 @@ import type { Event } from "@/types";
  */
 export const GET = async (
   _request: Request,
-  { params }: { params: Promise<{ token: string; eventId: string }> },
+  { params }: { params: Promise<{ token: string; eventId: WebhookEvent["id"] }> },
 ): Promise<NextResponse<Event | ApiError>> => {
   const { token, eventId } = await params;
 

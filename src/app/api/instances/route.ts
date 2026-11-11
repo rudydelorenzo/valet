@@ -2,8 +2,8 @@ import { z } from "zod";
 import {
   createPortainerInstance,
   listPortainerInstancesByUser,
-  toPublicInstance,
 } from "@/lib/db/portainer-instances";
+import { toPublicInstance } from "@/lib/helpers/portainer-instances";
 import { validateInstance } from "@/lib/portainer";
 import { requireAuth } from "@/lib/auth/guard";
 import { json, parseBody } from "@/lib/http";

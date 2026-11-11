@@ -2,9 +2,9 @@ import {
   getWebhook,
   updateWebhook,
   deleteWebhook,
-  getWebhookHealth,
-  computeWebhookStatus,
 } from "@/lib/db/webhooks";
+import { getWebhookHealth, computeWebhookStatus } from "@/lib/helpers/webhooks";
+import type { Webhook } from "@/lib/db/schema";
 import { requireAuth } from "@/lib/auth/guard";
 import { json, parseBody } from "@/lib/http";
 import { WebhookDetailSchema } from "@/types";
@@ -19,7 +19,7 @@ import type { WebhookDetail } from "@/types";
 
 export const GET = async (
   _request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: Webhook["id"] }> },
 ): Promise<NextResponse<WebhookDetail | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;
@@ -43,7 +43,7 @@ export const GET = async (
 
 export const PATCH = async (
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: Webhook["id"] }> },
 ): Promise<NextResponse<{ ok: boolean } | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;
@@ -63,7 +63,7 @@ export const PATCH = async (
 
 export const DELETE = async (
   _request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: Webhook["id"] }> },
 ): Promise<NextResponse<{ ok: boolean } | ApiError>> => {
   const userId = await requireAuth();
   const { id } = await params;

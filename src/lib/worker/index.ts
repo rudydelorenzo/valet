@@ -1,7 +1,7 @@
 import {
   claimNextEvent,
   finishEvent,
-} from "@/lib/webhook-events";
+} from "@/lib/helpers/webhook-events";
 import { TERMINAL_STATE } from "@/lib/constants";
 import type { WebhookEvent } from "@/lib/db/schema";
 

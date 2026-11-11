@@ -1,4 +1,4 @@
-import { hasAnyProvider } from "@/lib/db/oidc-providers";
+import { hasAnyProvider } from "@/lib/helpers/oidc-providers";
 import { getOrGenerateSetupCode, verifySetupCode } from "@/lib/setup";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";

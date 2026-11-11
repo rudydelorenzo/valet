@@ -141,5 +141,5 @@ is **derived from this log** — state lives in exactly one place.
 | --- | --- |
 | Executor (fetch/PUT/watch) | `src/lib/worker/jobs/deploy/index.ts` |
 | Pure decisions + invariants | `src/lib/worker/jobs/deploy/state.ts` |
-| Log writes / reads | `src/lib/db/webhook-event-steps.ts` (pure accessors); `src/lib/webhook-events.ts` (lifecycle rules: enqueue, claim, finish, recovery) |
+| Log writes / reads | `src/lib/db/webhook-event-steps.ts` (pure accessors); `src/lib/helpers/webhook-events.ts` (lifecycle rules: enqueue, claim, finish, recovery) |
 | State vocabulary | `src/lib/constants.ts` (`DEPLOY_STEP`, `TERMINAL_STATE`, …) |

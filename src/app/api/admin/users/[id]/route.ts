@@ -1,4 +1,5 @@
-import { countAdmins, updateUser } from "@/lib/db/users";
+import { countAdmins } from "@/lib/helpers/users";
+import { updateUser } from "@/lib/db/users";
 import { requireAdmin } from "@/lib/auth/guard";
 import { json, parseBody } from "@/lib/http";
 import {
@@ -7,11 +8,12 @@ import {
   UpdateUserSchema,
   type ApiError,
 } from "@/types/api";
+import type { User } from "@/lib/db/schema";
 import { NextResponse } from "next/server";
 
 export const PATCH = async (
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: User["id"] }> },
 ): Promise<NextResponse<{ ok: boolean } | ApiError>> => {
   await requireAdmin();
   const { id } = await params;

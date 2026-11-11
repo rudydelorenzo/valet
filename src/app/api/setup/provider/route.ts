@@ -1,8 +1,4 @@
-import {
-  createProvider,
-  hasAnyProvider,
-  toPublicProvider,
-} from "@/lib/db/oidc-providers";
+import { hasAnyProvider, createProvider, toPublicProvider } from "@/lib/helpers/oidc-providers";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { discover } from "@/lib/auth/oidc";

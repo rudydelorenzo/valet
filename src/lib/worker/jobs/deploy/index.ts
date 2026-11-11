@@ -1,7 +1,7 @@
 import { getWebhook } from "@/lib/db/webhooks";
 import { getPortainerInstance } from "@/lib/db/portainer-instances";
 import { listEventStepsForEvent } from "@/lib/db/webhook-event-steps";
-import { recordEventStep } from "@/lib/webhook-events";
+import { recordEventStep } from "@/lib/helpers/webhook-events";
 import {
   getStack,
   getStackFile,
@@ -11,7 +11,7 @@ import {
   type PortainerStack,
   type DockerContainerSummary,
 } from "@/lib/portainer";
-import type { PortainerInstance } from "@/lib/db/schema";
+import type { PortainerInstance, Webhook, WebhookEvent } from "@/lib/db/schema";
 import { STACK_STATUS, DEPLOY_WATCH_INTERVAL_MS, DEPLOY_STEP } from "@/lib/constants";
 import type { EventHandler } from "@/lib/worker";
 import {
@@ -40,6 +40,29 @@ const stackView = (s: PortainerStack): StackView => ({
   deploymentStatus: s.DeploymentStatus,
 });
 
+/**
+ * Shared deploy preflight: fetch the stack, refuse missing/inactive
+ * stacks. The API routes (manual trigger, inbound webhook) fail fast
+ * with this before queueing; the job re-checks at its fetch stage
+ * because it must stand alone when resuming after a crash.
+ */
+export const preflightStack = async (
+  instance: PortainerInstance,
+  webhook: { stackId: Webhook["stackId"]; endpointId: Webhook["endpointId"] },
+  step: string,
+): Promise<{ stack: PortainerStack } | { error: string }> => {
+  const stack = await getStack(
+    instance.url,
+    instance.token,
+    instance.insecureTls,
+    webhook.stackId,
+    webhook.endpointId,
+  );
+  if (!stack) return { error: "Stack not found — it may have been deleted" };
+  if (stack.Status === STACK_STATUS.INACTIVE) return { error: inactiveMessage(step) };
+  return { stack };
+};
+
 const containerView = (c: DockerContainerSummary): ContainerView => ({
   id: c.Id,
   created: c.Created,
@@ -47,13 +70,17 @@ const containerView = (c: DockerContainerSummary): ContainerView => ({
 });
 
 interface Ctx {
-  event: { id: string; createdAt: Date };
+  event: { id: WebhookEvent["id"]; createdAt: Date };
   /** Where the machine died (furthest work step), "created" for birth-only logs. */
   step: string;
   /** Processing-window start: the first `claimed` row's time. */
   claimedAt: number;
   instance: PortainerInstance;
-  webhook: { stackId: number; endpointId: number; name: string };
+  webhook: {
+    stackId: Webhook["stackId"];
+    endpointId: Webhook["endpointId"];
+    name: Webhook["name"];
+  };
   timeoutSeconds: number;
 }
 
@@ -120,26 +147,17 @@ const fetchAndDeploy = async (ctx: Ctx): Promise<{ success: boolean; message: st
   // Everything in this stage is read-only. Failures here are honest
   // errors — nothing has been sent to Portainer yet — so surface the
   // raw message instead of the worker's "handler crashed" wrapper.
-  let stack: PortainerStack | null;
+  let stack: PortainerStack;
   let file: { StackFileContent: string };
   try {
-    stack = await getStack(
-      instance.url,
-      instance.token,
-      instance.insecureTls,
-      webhook.stackId,
-      webhook.endpointId,
-    );
-    if (!stack) {
-      return { success: false, message: "Stack not found — it may have been deleted" };
+    const preflight = await preflightStack(instance, webhook, DEPLOY_STEP.FETCHING);
+    if ("error" in preflight) {
+      return { success: false, message: preflight.error };
     }
+    stack = preflight.stack;
     file = await getStackFile(instance.url, instance.token, instance.insecureTls, webhook.stackId);
   } catch (err) {
     return { success: false, message: err instanceof Error ? err.message : String(err) };
-  }
-
-  if (stack.Status === STACK_STATUS.INACTIVE) {
-    return { success: false, message: inactiveMessage("fetching") };
   }
   // [] on error — the snapshot rungs simply degrade.
   const containers = await getStackContainers(

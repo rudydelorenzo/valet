@@ -1,9 +1,9 @@
 import {
   deleteProvider,
   getProvider,
-  toPublicProvider,
-  updateProvider,
 } from "@/lib/db/oidc-providers";
+import { toPublicProvider, updateProvider } from "@/lib/helpers/oidc-providers";
+import type { OidcProvider as OidcProviderRow } from "@/lib/db/schema";
 import { discover } from "@/lib/auth/oidc";
 import { requireAdmin } from "@/lib/auth/guard";
 import { json, parseBody } from "@/lib/http";
@@ -19,7 +19,7 @@ import type { OidcProvider } from "@/types";
 
 export const GET = async (
   _request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: OidcProviderRow["id"] }> },
 ): Promise<NextResponse<OidcProvider | ApiError>> => {
   await requireAdmin();
   const { id } = await params;
@@ -35,7 +35,7 @@ export const GET = async (
 
 export const PATCH = async (
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: OidcProviderRow["id"] }> },
 ): Promise<NextResponse<{ ok: boolean } | ApiError>> => {
   await requireAdmin();
   const { id } = await params;
@@ -67,7 +67,7 @@ export const PATCH = async (
 
 export const DELETE = async (
   _request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: OidcProviderRow["id"] }> },
 ): Promise<NextResponse<{ ok: boolean } | ApiError>> => {
   await requireAdmin();
   const { id } = await params;
